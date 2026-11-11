@@ -51,7 +51,7 @@ table.g td.q.x{background:var(--x)}table.g td.q.x button:last-child{color:var(--
 .qh .ans{font-weight:600}.qh .un{font-size:12px;color:var(--sub)}
 .bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;min-width:80px}.bar i{display:block;height:100%;background:var(--pri)}
 .bar.low i{background:var(--xb)}
-.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line);overflow-x:auto}.tabs a{white-space:nowrap}
 .tabs a{padding:8px 14px;cursor:pointer;color:var(--sub);border-bottom:2px solid transparent}
 .tabs a.on{color:var(--pri);border-color:var(--pri);font-weight:600}
 .note{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;color:var(--sub);font-size:13px}
@@ -249,11 +249,12 @@ const shiftDate=(d,n)=>{const t=new Date(d+'T00:00:00');t.setDate(t.getDate()+n)
 const attDay=(cid,d)=>((DB.att[cid]||{})[d])||{};
 function classTabs(cid,tab,c){const T=[['lesson','수업'],['att','출결'],['daily','일일테스트'],['exams','시험'],['report','리포트'],['roster','명단 ('+c.members.length+')']];return `<div class="tabs">${T.map(([k,t])=>`<a class="${tab===k?'on':''}" href="#/class/${cid}?tab=${k}">${t}</a>`).join('')}</div>`}
 function attPage(app,c,q){
+  if(q.get('view')==='month')return attMonthPage(app,c,q);
   const cid=c.id,d=q.get('d')||today(),day=attDay(cid,d),dow=DOW[new Date(d+'T00:00:00').getDay()];
   const ms=[...c.members,...Object.keys(day).filter(x=>stu(x)&&!c.members.some(m=>m.id===x)).map(x=>({id:x,hold:false}))], live=ms.filter(m=>!m.hold);
   const cnt={p:0,l:0,a:0,e:0};ms.forEach(m=>{const r=day[m.id];if(r&&r.s)cnt[r.s]++});const pend=live.filter(m=>!(day[m.id]&&day[m.id].s)).length;
   const nd=x=>`#/class/${cid}?tab=att&d=${x}`;
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'att',c)}
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'att',c)}${attToggle(cid,'day')}
   <div class="row" style="margin-bottom:10px"><button class="btn" onclick="location.hash='${nd(shiftDate(d,-1))}'">◀</button><input type="date" value="${d}" onchange="location.hash='#/class/${cid}?tab=att&d='+this.value"><button class="btn" onclick="location.hash='${nd(shiftDate(d,1))}'">▶</button><button class="btn sm" onclick="location.hash='${nd(today())}'">오늘</button><b>${dow}요일</b>${c.days&&!c.days.includes(dow)?'<span class="badge">수업 요일 아님</span>':''}<span class="sp"></span><button class="btn sm" onclick="attAll('${cid}','${d}')">전원 출석</button><button class="btn sm danger" onclick="attClear('${cid}','${d}')">이 날 기록 지우기</button></div>
   <div class="sub" style="margin-bottom:8px">출석 ${cnt.p} · 지각 ${cnt.l} · 결석 ${cnt.a} · 조퇴 ${cnt.e} · 미입력 ${pend}</div>
   ${ms.map(m=>{const s=stu(m.id),r=day[m.id]||{};
@@ -291,6 +292,7 @@ function todayBlock(){const T=todayClasses();if(!T.length)return '';
 const eidOf=s=>s.eid||(/^\d+$/.test(s.id)?s.id:'');
 const findByEid=x=>Object.values(DB.roster.students).find(s=>s.id===x||s.eid===x);
 const f0=n=>n==null||isNaN(n)?'-':Math.round(n);
+const pctS=n=>n==null||isNaN(n)?'-':Math.round(n)+'%';
 const sgn=n=>n==null?'':(n>0?'▲ +':n<0?'▼ ':'– ')+Math.abs(Math.round(n*10)/10);
 const STC={'보완 필요':'#dc2626','하락':'#dc2626','개선 중':'#d97706','개선됨':'#16a34a','강점':'#16a34a','보통':'#6b7385'};
 const stBadge=st=>`<span class="badge" style="background:${STC[st]||'#6b7385'};color:#fff">${st}</span>`;
@@ -366,8 +368,8 @@ const trendFor=mode=>mode==='a'?trend:trendLast;
 function autoComment(sid,mode){
   mode=mode||GP;const R=recsOf(sid),S=periodSummary(R,mode),L=[];
   const nm={m:['이번 달','지난달'],q:['이번 분기','지난 분기'],a:['후반 기록','전반 기록']}[mode];
-  if(S.diff==null)L.push(`성적: 기록 ${R.length}회, ${mode==='a'?'전체':S.cur.label} 평균 ${f0(S.cur.p)}점(100점 환산)이에요. 비교할 이전 기간이 쌓이면 변화를 보여드려요.`);
-  else L.push(`성적: ${nm[0]}${mode==='a'?'':'('+S.cur.label+')'} 평균 ${f0(S.cur.p)}점으로 ${nm[1]}(${f0(S.prev.p)}점)보다 ${S.diff>=5?'올랐어요 ('+sgn(S.diff)+'%p).':S.diff<=-5?'내려갔어요 ('+sgn(S.diff)+'%p). 원인 확인이 필요해요.':'비슷해요 ('+sgn(S.diff)+'%p).'}`);
+  if(S.diff==null)L.push(`성적: 기록 ${R.length}회, ${mode==='a'?'전체':S.cur.label} 평균 ${f0(S.cur.p)}%예요. 비교할 이전 기간이 쌓이면 변화를 보여드려요.`);
+  else L.push(`성적: ${nm[0]}${mode==='a'?'':'('+S.cur.label+')'} 평균 ${f0(S.cur.p)}%로 ${nm[1]}(${f0(S.prev.p)}%)보다 ${S.diff>=5?'올랐어요 ('+sgn(S.diff)+'%p).':S.diff<=-5?'내려갔어요 ('+sgn(S.diff)+'%p). 원인 확인이 필요해요.':'비슷해요 ('+sgn(S.diff)+'%p).'}`);
   if(S.cur.rk!=null&&S.prev&&S.prev.rk!=null)L.push(`반 안 위치: ${nm[0]} 상위 ${Math.round(S.cur.rk*100)}% (${nm[1]} 상위 ${Math.round(S.prev.rk*100)}%).`);
   const tf=trendFor(mode),pick=(S0,...sts)=>Object.entries(S0).filter(([k,a])=>sts.includes(tf(a).st)).map(([k])=>k);
   const U=seriesP(sid,'unit',mode),K=seriesP(sid,'kind',mode);
@@ -390,8 +392,8 @@ function lineChart(R){
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:700px">${[0,50,100].map(v=>`<line x1="${P}" x2="${W-P}" y1="${y(v)}" y2="${y(v)}" stroke="#8884"/><text x="4" y="${y(v)+4}" font-size="11" fill="#888">${v}</text>`).join('')}
   <polyline fill="none" stroke="#888" stroke-dasharray="4 4" points="${R.map((r,i)=>x(i)+','+y(r.avg==null?r.p:r.avg)).join(' ')}"/>
   <polyline fill="none" stroke="#1968b3" stroke-width="2.5" points="${R.map((r,i)=>x(i)+','+y(r.p)).join(' ')}"/>
-  ${R.map((r,i)=>`<circle cx="${x(i)}" cy="${y(r.p)}" r="${r.t==='exam'?5:3.5}" fill="${r.t==='exam'?'#1968b3':'#fff'}" stroke="#1968b3" stroke-width="2"/>${(r.t==='exam'||n<=12)?`<text x="${x(i)}" y="${y(r.p)-9}" font-size="11" text-anchor="middle" fill="#1968b3">${f0(r.p)}</text>`:''}${i%step===0?`<text x="${x(i)}" y="${H-10}" font-size="10" text-anchor="middle" fill="#888">${esc(r.date.slice(5))}</text>`:''}`).join('')}</svg>
-  <div class="sub">큰 점 = 정규시험, 작은 흰 점 = 일일테스트 · 파랑 본인 · 점선 반 평균 (모두 100점 환산)</div>`;
+  ${R.map((r,i)=>`<circle cx="${x(i)}" cy="${y(r.p)}" r="${r.t==='exam'?5:3.5}" fill="${r.t==='exam'?'#1968b3':'#fff'}" stroke="#1968b3" stroke-width="2"/>${(r.t==='exam'||n<=12)?`<text x="${x(i)}" y="${y(r.p)-9}" font-size="11" text-anchor="middle" fill="#1968b3">${r.max===100?f0(r.p):fmt(r.sc)+'/'+fmt(r.max)}</text>`:''}${i%step===0?`<text x="${x(i)}" y="${H-10}" font-size="10" text-anchor="middle" fill="#888">${esc(r.date.slice(5))}</text>`:''}`).join('')}</svg>
+  <div class="sub">큰 점 = 정규시험, 작은 흰 점 = 일일테스트 · 파랑 본인 · 점선 반 평균 · 글자는 실제 점수(예: 8/10), 세로 위치는 만점 대비 %</div>`;
 }
 function rankChart(R){
   const Q=R.filter(r=>r.n>=2);
@@ -421,15 +423,15 @@ function barChart(B){
   if(!B.length)return '';
   const W=640,H=220,P=34,n=B.length,bw=Math.min(64,(W-2*P)/n*0.6),x=i=>P+(i+.5)*(W-2*P)/n,y=v=>H-P-(Math.max(0,Math.min(100,v))/100)*(H-2*P);
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:700px">${[0,50,100].map(v=>`<line x1="${P}" x2="${W-P}" y1="${y(v)}" y2="${y(v)}" stroke="#8884"/><text x="4" y="${y(v)+4}" font-size="11" fill="#888">${v}</text>`).join('')}
-  ${B.map((b,i)=>`<rect x="${x(i)-bw/2}" y="${y(b.p)}" width="${bw}" height="${H-P-y(b.p)}" rx="3" fill="#1968b3"/><text x="${x(i)}" y="${y(b.p)-6}" font-size="11" text-anchor="middle" fill="#1968b3">${f0(b.p)}</text><text x="${x(i)}" y="${H-12}" font-size="10" text-anchor="middle" fill="#888">${esc(b.label)}</text>`).join('')}
-  <polyline fill="none" stroke="#888" stroke-dasharray="4 4" points="${B.map((b,i)=>x(i)+','+y(b.cls)).join(' ')}"/>${B.map((b,i)=>`<circle cx="${x(i)}" cy="${y(b.cls)}" r="3" fill="#888"/>`).join('')}</svg><div class="sub">막대 = 본인 평균, 점선 = 반 평균 (100점 환산)</div>`;
+  ${B.map((b,i)=>`<rect x="${x(i)-bw/2}" y="${y(b.p)}" width="${bw}" height="${H-P-y(b.p)}" rx="3" fill="#1968b3"/><text x="${x(i)}" y="${y(b.p)-6}" font-size="11" text-anchor="middle" fill="#1968b3">${f0(b.p)}%</text><text x="${x(i)}" y="${H-12}" font-size="10" text-anchor="middle" fill="#888">${esc(b.label)}</text>`).join('')}
+  <polyline fill="none" stroke="#888" stroke-dasharray="4 4" points="${B.map((b,i)=>x(i)+','+y(b.cls)).join(' ')}"/>${B.map((b,i)=>`<circle cx="${x(i)}" cy="${y(b.cls)}" r="3" fill="#888"/>`).join('')}</svg><div class="sub">막대 = 본인 평균(만점 대비 %), 점선 = 반 평균</div>`;
 }
 function bucketTable(B){
-  return `<table class="t"><tr><th>기간</th><th>기록</th><th>평균</th><th class="hide-s">정규</th><th class="hide-s">일일</th><th>반 평균</th><th>변화</th><th>반 안 위치</th></tr>${B.map((b,i)=>{const d=i?b.p-B[i-1].p:null;return `<tr><td>${esc(b.label)}</td><td>${b.n}</td><td><b>${f0(b.p)}</b></td><td class="hide-s">${f0(b.pe)}</td><td class="hide-s">${f0(b.pd)}</td><td>${f0(b.cls)}</td><td style="color:${d==null?'#888':d>0?'#16a34a':d<0?'#dc2626':'#888'}">${d==null?'-':sgn(d)+'%p'}</td><td>${b.rk==null?'-':'상위 '+Math.round(b.rk*100)+'%'}</td></tr>`}).join('')}</table>`;
+  return `<table class="t"><tr><th>기간</th><th>기록</th><th>평균</th><th class="hide-s">정규</th><th class="hide-s">일일</th><th>반 평균</th><th>변화</th><th>반 안 위치</th></tr>${B.map((b,i)=>{const d=i?b.p-B[i-1].p:null;return `<tr><td>${esc(b.label)}</td><td>${b.n}</td><td><b>${f0(b.p)}%</b></td><td class="hide-s">${pctS(b.pe)}</td><td class="hide-s">${pctS(b.pd)}</td><td>${pctS(b.cls)}</td><td style="color:${d==null?'#888':d>0?'#16a34a':d<0?'#dc2626':'#888'}">${d==null?'-':sgn(d)+'%p'}</td><td>${b.rk==null?'-':'상위 '+Math.round(b.rk*100)+'%'}</td></tr>`}).join('')}</table>`;
 }
 const periodBtns=(mode)=>`<div class="row" style="margin-bottom:10px">${[['m','월별'],['q','분기별'],['a','전체']].map(([m,t])=>`<button class="btn sm ${mode===m?'pri':''}" onclick="setGP('${m}')">${t}</button>`).join('')}<span class="sub">분기는 1~3월·4~6월·7~9월·10~12월 기준이에요.</span></div>`;
 function recTable(R){
-  return `<table class="t"><tr><th>날짜</th><th>구분</th><th>시험·단원</th><th>점수</th><th>반 내 등수</th><th class="hide-s">반 평균</th></tr>${R.slice().reverse().map(r=>`<tr><td>${esc(r.date)}</td><td>${r.t==='exam'?'정규':'일일'}</td><td>${esc(r.name)}</td><td><b>${fmt(r.sc)}</b>/${fmt(r.max)}</td><td>${r.n>=2?r.rank+'/'+r.n:'-'}</td><td class="hide-s">${f0(r.avg/100*r.max)}</td></tr>`).join('')}</table>`;
+  return `<table class="t"><tr><th>날짜</th><th>구분</th><th>시험·단원</th><th>점수</th><th>반 내 등수</th><th class="hide-s">반 평균</th></tr>${R.slice().reverse().map(r=>`<tr><td>${esc(r.date)}</td><td>${r.t==='exam'?'정규':'일일'}</td><td>${esc(r.name)}</td><td><b>${fmt(r.sc)}</b>/${fmt(r.max)} <span class="sub">(${f0(r.p)}%)</span></td><td>${r.n>=2?r.rank+'/'+r.n:'-'}</td><td class="hide-s">${fmt(Math.round(r.avg/100*r.max*10)/10)}</td></tr>`).join('')}</table>`;
 }
 function growthBlock(sid){
   const R=recsOf(sid);
@@ -438,7 +440,7 @@ function growthBlock(sid){
   const cmp=mode==='m'?'지난달':mode==='q'?'지난 분기':'전반 대비';
   const chip=(t,v,s)=>`<div class="card" style="flex:1;min-width:140px"><div class="sub">${t}</div><div class="sc">${v}</div><div class="sub">${s||''}</div></div>`;
   const first=mode==='a'?S.all:S.cur;
-  return `${periodBtns(mode)}<div class="row">${chip(mode==='a'?'전체 평균':esc(S.cur.label)+' 평균',f0(first.p)+'점',S.diff==null?'비교할 이전 기간 없음':sgn(S.diff)+'%p ('+(mode==='a'?'후반 vs 전반':cmp+' 대비')+')')}${chip('반 안 위치',S.cur.rk==null?'-':'상위 '+Math.round(S.cur.rk*100)+'%',S.prev&&S.prev.rk!=null?(mode==='a'?'전반':cmp)+' 상위 '+Math.round(S.prev.rk*100)+'%':'')}${chip('누적 기록',R.length+'회',R[0].date+' ~ '+R[R.length-1].date)}</div>
+  return `${periodBtns(mode)}<div class="row">${chip(mode==='a'?'전체 평균':esc(S.cur.label)+' 평균',f0(first.p)+'%',S.diff==null?'비교할 이전 기간 없음':sgn(S.diff)+'%p ('+(mode==='a'?'후반 vs 전반':cmp+' 대비')+')')}${chip('반 안 위치',S.cur.rk==null?'-':'상위 '+Math.round(S.cur.rk*100)+'%',S.prev&&S.prev.rk!=null?(mode==='a'?'전반':cmp)+' 상위 '+Math.round(S.prev.rk*100)+'%':'')}${chip('누적 기록',R.length+'회',R[0].date+' ~ '+R[R.length-1].date)}</div>
   <h3>성장·약점 진단</h3><div class="card" style="white-space:pre-wrap">${esc(autoComment(sid,mode))}</div>
   <h3>${mode==='m'?'월별':mode==='q'?'분기별':'전체 기록'} 점수</h3><div class="card">${mode==='a'?lineChart(R):barChart(B)}</div>
   ${mode==='a'?`<h3>월별 요약</h3>${bucketTable(bucketsOf(R,'m'))}<h3>분기별 요약</h3>${bucketTable(bucketsOf(R,'q'))}`:`<h3>${mode==='m'?'월별':'분기별'} 표</h3>${bucketTable(B)}`}
@@ -492,8 +494,8 @@ function reportPage(app,c){
   const merge=key=>{const S={};c.members.forEach(m=>Object.entries(seriesBy(m.id,key)).forEach(([k,a])=>(S[k]=S[k]||[]).push(...a)));Object.values(S).forEach(a=>a.sort((x,y)=>x.date.localeCompare(y.date)));return bucketSeries(S,mode)};
   const curL=mode==='a'?'전체 평균':(ck?bLabel(ck,mode):'최근')+' 평균',prevL=mode==='a'?'전반':(pk?bLabel(pk,mode):'이전');
   app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(c.id,'report',c)}
-  ${periodBtns(mode)}<p class="sub">정규시험과 일일테스트를 100점으로 환산해 ${mode==='a'?'전체 기록 평균':'가장 최근 기간 평균'}으로 줄 세운 순위예요. 이름을 누르면 개인 성장 리포트가 열려요.</p>
-  <div class="scroll" style="max-height:none"><table class="t"><tr><th>#</th><th>이름</th><th>누적</th><th>${esc(curL)}</th><th>${esc(prevL)}</th><th>변화</th><th>추이</th><th class="hide-s">보완 필요·하락</th><th class="hide-s">개선된 단원</th></tr>${rows.map((r,i)=>`<tr class="${r.m.hold?'hold':''}"><td>${r.cur!=null?i+1:'-'}</td><td><a href="#/student/${r.m.id}" style="color:inherit">${esc(stu(r.m.id).name)}</a></td><td>${r.R.length}</td><td><b>${f0(r.cur)}</b></td><td>${f0(r.prev)}</td><td style="color:${r.diff>0?'#16a34a':r.diff<0?'#dc2626':'#888'}">${r.diff!=null?sgn(r.diff):'-'}</td><td>${sparkV(r.vals)}</td><td class="hide-s weak">${esc(r.weak.join(', '))||'-'}</td><td class="hide-s" style="color:#16a34a">${esc(r.up.join(', '))||'-'}</td></tr>`).join('')}</table></div>
+  ${periodBtns(mode)}<p class="sub">정규시험과 일일테스트를 만점 대비 %로 환산해 ${mode==='a'?'전체 기록 평균':'가장 최근 기간 평균'}으로 줄 세운 순위예요. 이름을 누르면 개인 성장 리포트가 열려요.</p>
+  <div class="scroll" style="max-height:none"><table class="t"><tr><th>#</th><th>이름</th><th>누적</th><th>최근 점수</th><th>${esc(curL)}</th><th>${esc(prevL)}</th><th>변화</th><th>추이</th><th class="hide-s">보완 필요·하락</th><th class="hide-s">개선된 단원</th></tr>${rows.map((r,i)=>`<tr class="${r.m.hold?'hold':''}"><td>${r.cur!=null?i+1:'-'}</td><td><a href="#/student/${r.m.id}" style="color:inherit">${esc(stu(r.m.id).name)}</a></td><td>${r.R.length}</td><td>${r.R.length?fmt(r.R[r.R.length-1].sc)+'/'+fmt(r.R[r.R.length-1].max):'-'}</td><td><b>${pctS(r.cur)}</b></td><td>${pctS(r.prev)}</td><td style="color:${r.diff>0?'#16a34a':r.diff<0?'#dc2626':'#888'}">${r.diff!=null?sgn(r.diff):'-'}</td><td>${sparkV(r.vals)}</td><td class="hide-s weak">${esc(r.weak.join(', '))||'-'}</td><td class="hide-s" style="color:#16a34a">${esc(r.up.join(', '))||'-'}</td></tr>`).join('')}</table></div>
   <h3>반 전체 단원별 흐름</h3>${trendMatrix(merge('unit'),'단원',mode)}<h3>반 전체 유형별 흐름</h3>${trendMatrix(merge('kind'),'유형',mode)}`;
 }
 /* ===== 수업 기록 (오늘 계획 → 실제 진행 → 숙제 → TEST, 지난 수업 이어보기) ===== */
@@ -660,6 +662,72 @@ function importBundle(d){ // 한 파일에 일일테스트·수업 기록·출�
   save();alert('등록했어요.\n'+msgs.join('\n'));if(go)location.hash=go;
 }
 
+/* ===== 출결 월간 현황 (반별 표) · 학생별 달력 ===== */
+const attToggle=(cid,v,m)=>`<div class="row" style="margin-bottom:10px"><button class="btn sm ${v==='day'?'pri':''}" onclick="location.hash='#/class/${cid}?tab=att'">날짜별 입력</button><button class="btn sm ${v==='month'?'pri':''}" onclick="location.hash='#/class/${cid}?tab=att&view=month${m?'&m='+m:''}'">월간 현황</button></div>`;
+const ymShift=(ym,n)=>{const [y,m]=ym.split('-').map(Number),t=new Date(y,m-1+n,1);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')};
+const daysIn=ym=>{const [y,m]=ym.split('-').map(Number);return new Date(y,m,0).getDate()};
+const ymLabel=ym=>`${ym.slice(0,4)}년 ${+ym.slice(5)}월`;
+const ACELL={p:['○','#16a34a','#16a34a22'],l:['지','#b45309','#d9770630'],a:['✕','#dc2626','#dc262626'],e:['조','#2563eb','#2563eb26']};
+function attMonthStats(c,ym){
+  const D=DB.att[c.id]||{},N=daysIn(ym),td=today();
+  const dates=Array.from({length:N},(_,i)=>`${ym}-${String(i+1).padStart(2,'0')}`);
+  const isReg=d=>!!c.days&&c.days.includes(DOW[new Date(d+'T00:00:00').getDay()]);
+  const has=d=>!!D[d]&&Object.values(D[d]).some(r=>r&&r.s);
+  const cols=dates.filter(d=>isReg(d)||has(d));
+  const ids=[...new Set([...c.members.filter(m=>!m.hold).map(m=>m.id),...dates.flatMap(d=>Object.keys(D[d]||{}))])].filter(stu);
+  ids.sort((a,b)=>stu(a).name.localeCompare(stu(b).name,'ko'));
+  const rows=ids.map(sid=>{const k={p:0,l:0,a:0,e:0};cols.forEach(d=>{const r=(D[d]||{})[sid];if(r&&r.s)k[r.s]++});
+    const rec=k.p+k.l+k.a+k.e,rate=rec?Math.round((k.p+k.l+k.e)/rec*100):null;return {sid,k,rec,rate}});
+  const tot={p:0,l:0,a:0,e:0};rows.forEach(r=>{['p','l','a','e'].forEach(x=>tot[x]+=r.k[x])});
+  const rec=tot.p+tot.l+tot.a+tot.e;
+  return {D,dates,cols,rows,tot,td,has,isReg,rate:rec?Math.round((tot.p+tot.l+tot.e)/rec*100):null,inputDays:cols.filter(has).length,regDays:cols.filter(d=>isReg(d)&&d<=td).length};
+}
+function attMonthTable(c,ym,S){
+  const th=S.cols.map(d=>{const dw=DOW[new Date(d+'T00:00:00').getDay()],fut=d>S.td,tdy=d===S.td,extra=!S.isReg(d);
+    return `<th style="text-align:center;min-width:34px;padding:4px 2px;${tdy?'background:#1968b322;':''}${fut?'opacity:.45;':''}"><div style="font-size:13px;font-weight:700">${+d.slice(8)}</div><div style="font-size:11px;font-weight:400;color:${dw==='일'?'#dc2626':dw==='토'?'#2563eb':'var(--sub)'}">${dw}${extra?'*':''}</div></th>`}).join('');
+  const body=S.rows.map(r=>{
+    const cells=S.cols.map(d=>{const x=(S.D[d]||{})[r.sid]||{},fut=d>S.td,tdy=d===S.td;
+      const bd=tdy?'box-shadow:inset 0 0 0 2px #1968b366;':'';
+      if(x.s){const [ch,fg,bg]=ACELL[x.s];return `<td title="${esc(d+(x.n?' · '+x.n:''))}" style="text-align:center;font-weight:700;color:${fg};background:${bg};${bd}position:relative">${ch}${x.n?'<i style="position:absolute;top:1px;right:3px;font-size:9px;font-style:normal">•</i>':''}</td>`}
+      if(fut)return `<td style="${bd}"></td>`;
+      return `<td style="text-align:center;color:#bbb;${bd}">${S.has(d)?'·':'–'}</td>`}).join('');
+    const rt=r.rate==null?'-':r.rate+'%';
+    return `<tr><td style="white-space:nowrap;position:sticky;left:0;background:var(--card);z-index:2;padding:6px 8px"><a href="#/student/${r.sid}" style="color:inherit;font-weight:600">${esc(stu(r.sid).name)}</a></td>${cells}
+      <td style="text-align:center;color:#16a34a;font-weight:600">${r.k.p}</td><td style="text-align:center;color:#b45309;font-weight:600">${r.k.l}</td><td style="text-align:center;color:#dc2626;font-weight:700">${r.k.a}</td><td style="text-align:center;color:#2563eb;font-weight:600">${r.k.e}</td>
+      <td style="min-width:90px"><div class="row" style="gap:6px;flex-wrap:nowrap"><div class="bar ${r.rate!=null&&r.rate<80?'low':''}" style="width:50px;min-width:50px"><i style="width:${r.rate||0}%"></i></div><b style="font-size:13px">${rt}</b></div></td></tr>`}).join('');
+  return `<div class="scroll" style="max-height:none"><table class="t" style="border-collapse:separate;border-spacing:0"><tr><th style="position:sticky;left:0;background:var(--card);z-index:3">이름</th>${th}<th style="text-align:center;color:#16a34a">출</th><th style="text-align:center;color:#b45309">지</th><th style="text-align:center;color:#dc2626">결</th><th style="text-align:center;color:#2563eb">조</th><th>출석률</th></tr>${body}</table></div>`;
+}
+function attMonthPage(app,c,q){
+  const ym=q.get('m')||today().slice(0,7),cid=c.id,S=attMonthStats(c,ym);
+  const mv=n=>`#/class/${cid}?tab=att&view=month&m=${ymShift(ym,n)}`;
+  const card=(t,v,col,sub)=>`<div class="card" style="flex:1;min-width:110px;padding:10px 12px"><div class="sub">${t}</div><div class="sc" style="color:${col||'inherit'}">${v}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
+  const watch=S.rows.filter(r=>r.k.a>=2||r.k.l>=3||(r.rate!=null&&r.rate<80)).sort((a,b)=>b.k.a-a.k.a||b.k.l-a.k.l);
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'att',c)}${attToggle(cid,'month',ym)}
+  <div class="row" style="margin-bottom:10px"><button class="btn" onclick="location.hash='${mv(-1)}'">◀</button><b style="font-size:17px">${ymLabel(ym)}</b><button class="btn" onclick="location.hash='${mv(1)}'">▶</button><button class="btn sm" onclick="location.hash='#/class/${cid}?tab=att&view=month'">이번 달</button><span class="sp"></span><button class="btn sm" onclick="printAttMonth('${cid}','${ym}')">인쇄</button></div>
+  <div class="row" style="margin-bottom:10px">${card('반 출석률',S.rate==null?'-':S.rate+'%',S.rate!=null&&S.rate<85?'#dc2626':'#16a34a','출석+지각+조퇴 ÷ 기록된 칸')}${card('결석',S.tot.a+'건','#dc2626')}${card('지각',S.tot.l+'건','#b45309')}${card('조퇴',S.tot.e+'건','#2563eb')}${card('입력한 수업일',S.inputDays+'일','',`이번 달 수업일 ${S.regDays}일 중`)}</div>
+  <div class="sub" style="margin-bottom:6px"><span style="color:#16a34a;font-weight:700">○</span> 출석 · <span style="color:#b45309;font-weight:700">지</span> 지각 · <span style="color:#dc2626;font-weight:700">✕</span> 결석 · <span style="color:#2563eb;font-weight:700">조</span> 조퇴 · <span style="color:#bbb">·</span> 그날 미입력 · <span style="color:#bbb">–</span> 그날 입력 없음 · • 메모 있음(칸에 대면 보여요) · 날짜 옆 * 는 정규 요일이 아닌 보강일 · 이름을 누르면 학생 달력</div>
+  ${S.cols.length?`<div id="attmwrap">${attMonthTable(c,ym,S)}</div>`:'<p class="note">이 달에는 표시할 수업일이 없어요. 반 설정에서 요일을 넣거나 [날짜별 입력]에서 출결을 기록해 주세요.</p>'}
+  ${watch.length?`<h3>확인이 필요한 학생</h3>${watch.map(r=>`<div class="card" style="margin-bottom:6px;padding:8px 12px"><div class="row"><a href="#/student/${r.sid}" style="color:inherit"><b>${esc(stu(r.sid).name)}</b></a><span style="color:#dc2626">결석 ${r.k.a}</span><span style="color:#b45309">지각 ${r.k.l}</span><span style="color:#2563eb">조퇴 ${r.k.e}</span><span class="sp"></span><span class="sub">출석률 ${r.rate==null?'-':r.rate+'%'}</span></div></div>`).join('')}<div class="sub">결석 2회 이상, 지각 3회 이상, 출석률 80% 미만인 학생이에요.</div>`:(S.rows.length&&S.inputDays?'<p class="note">이번 달은 확인이 필요한 학생이 없어요.</p>':'')}`;
+}
+function printAttMonth(cid,ym){const c=cls(cid),S=attMonthStats(c,ym);
+  $('#printArea').innerHTML=`<div class="rep" style="padding:16px"><h1>${esc(c.name)} 출결 현황 · ${ymLabel(ym)}</h1><div>반 출석률 ${S.rate==null?'-':S.rate+'%'} · 결석 ${S.tot.a} · 지각 ${S.tot.l} · 조퇴 ${S.tot.e} · 발행 ${today()}</div>${attMonthTable(c,ym,S)}<div style="font-size:12px;margin-top:6px">○ 출석 · 지 지각 · ✕ 결석 · 조 조퇴</div></div>`;
+  setTimeout(()=>window.print(),50)}
+/* 학생 페이지: 월별 출결 달력 (여러 반의 기록을 한 달력에) */
+let AY=today().slice(0,7);
+function setAY(n){AY=ymShift(AY,n);render()}
+function attCalendar(sid){
+  const rec={};let any=false;
+  Object.entries(DB.att||{}).forEach(([cid,D])=>Object.entries(D).forEach(([d,day])=>{const r=day[sid];if(r&&(r.s||r.n)){any=true;if(d.startsWith(AY))(rec[d]=rec[d]||[]).push({cid,s:r.s,n:r.n})}}));
+  if(!any)return '';
+  const lead=new Date(AY+'-01T00:00:00').getDay(),N=daysIn(AY),k={p:0,l:0,a:0,e:0};
+  Object.values(rec).forEach(a=>a.forEach(x=>{if(x.s)k[x.s]++}));
+  let cells='';for(let i=0;i<lead;i++)cells+='<div></div>';
+  for(let dd=1;dd<=N;dd++){const d=`${AY}-${String(dd).padStart(2,'0')}`,a=rec[d]||[],tdy=d===today(),dw=(lead+dd-1)%7;
+    cells+=`<div style="min-height:46px;border:1px solid var(--line);border-radius:8px;padding:2px 4px;${tdy?'box-shadow:inset 0 0 0 2px #1968b366;':''}"><div style="font-size:11px;color:${dw===0?'#dc2626':dw===6?'#2563eb':'var(--sub)'}">${dd}</div><div style="display:flex;gap:2px;flex-wrap:wrap">${a.map(x=>x.s?`<span title="${esc((cls(x.cid)||{}).name||'')}${x.n?' · '+esc(x.n):''}" style="font-weight:700;font-size:14px;padding:0 5px;border-radius:5px;color:${ACELL[x.s][1]};background:${ACELL[x.s][2]}">${ACELL[x.s][0]}</span>`:`<span title="${esc(x.n||'')}" style="font-size:11px">📝</span>`).join('')}</div></div>`}
+  return `<div class="card" style="margin-bottom:10px"><div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="setAY(-1)">◀</button><b>${ymLabel(AY)}</b><button class="btn sm" onclick="setAY(1)">▶</button><span class="sp"></span><span style="font-size:13px"><span style="color:#16a34a">출 ${k.p}</span> · <span style="color:#b45309">지 ${k.l}</span> · <span style="color:#dc2626">결 ${k.a}</span> · <span style="color:#2563eb">조 ${k.e}</span></span></div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:12px;color:var(--sub);margin-bottom:3px">${DOW.map(x=>`<div>${x}</div>`).join('')}</div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div><div class="sub" style="margin-top:6px">○ 출석 · 지 지각 · ✕ 결석 · 조 조퇴 · 칸에 대면 반 이름과 메모가 보여요</div></div>`;
+}
 /* ===== 명단 편집 도우미 (반·학생은 언제든 바뀔 수 있어요) ===== */
 const ko=(a,b)=>a.name.localeCompare(b.name,'ko');
 const sortMembers=c=>c.members.sort((a,b)=>stu(a.id).name.localeCompare(stu(b.id).name,'ko'));
@@ -866,7 +934,7 @@ function studentPage(app,sid){
   <h3>평가·조언 (상담 참고)</h3>${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점 · 오답 ${wrongList(e,sid).join(', ')||'없음'}</div><div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div></div>`).join(''):'<p class="note">아직 평가가 없어요. 시험지와 채점 이미지를 Claude에게 주면 만들어 드려요.</p>'}
   <h3>수업 기록</h3>${lessonBlock(sid)}
-  <h3>출결</h3>${attBlock(sid)}
+  <h3>출결</h3>${attCalendar(sid)}${attBlock(sid)}
   <h3>성장 리포트</h3>${growthBlock(sid)}
   <h3>상담 메모 (선생님용)</h3><textarea id="memo" rows="3" placeholder="상담·관찰 메모">${esc(DB.memos[sid]||'')}</textarea>
   <h3>성적표 코멘트 (성적표에 인쇄됨)</h3><textarea id="cmt" rows="3" placeholder="학부모께 전할 한마디">${esc(DB.comments[sid]||'')}</textarea>`;
