@@ -204,12 +204,12 @@ const cls=id=>DB.roster.classes.find(c=>c.id===id);
 const stu=id=>DB.roster.students[id];
 const roleBadge=r=>`<span class="badge ${r==='담임'?'d':r==='부담임'?'b':'s'}">${esc(r)}</span>`;
 const examsOf=cid=>DB.exams.filter(e=>e.classIds.includes(cid)).sort((a,b)=>b.date.localeCompare(a.date));
-const totalPt=e=>e.items.reduce((s,i)=>s+(+i.pt||0),0);
+const totalPt=e=>e.items.reduce((s,i)=>s+(+i.pt||0),0)+(+e.base||0); // base = 기본점수
 function score(e,sid){
   const r=(DB.results[e.id]||{})[sid]; if(!r) return null;
   if(r.total!==undefined&&r.total!==null&&r.total!=='') return +r.total;
   if(!r.m||!r.m.some(v=>v!==null&&v!==undefined)) return null;
-  return r.m.reduce((s,v,i)=>s+(+e.items[i].pt||0)*(+v||0),0);
+  return (+e.base||0)+r.m.reduce((s,v,i)=>s+(+e.items[i].pt||0)*(+v||0),0);
 }
 const fmt=n=>n==null?'-':(Math.round(n*10)/10);
 function avg(a){a=a.filter(v=>v!=null);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
@@ -874,7 +874,7 @@ function saveExam(){syncMeta();const e=DRAFT;
   if(!e.name.trim()) return alert('시험 이름을 입력해 주세요.');
   if(!e.classIds.length) return alert('적용할 반을 하나 이상 선택해 주세요.');
   const out={id:e._existing||uid(),name:e.name.trim(),type:e.type,date:e.date,classIds:e.classIds,items:e.items.map(i=>({ans:i.ans,unit:i.unit,kind:i.kind||'',pt:+i.pt||0}))};
-  const prev=DB.exams.find(x=>x.id===out.id);if(prev&&prev.roster)out.roster=prev.roster;
+  const prev=DB.exams.find(x=>x.id===out.id);if(prev&&prev.roster)out.roster=prev.roster;if(prev&&prev.base)out.base=prev.base;
   const k=DB.exams.findIndex(x=>x.id===out.id);if(k>=0)DB.exams[k]=out;else DB.exams.push(out);
   save();DRAFT=null;location.hash=`#/class/${e.classIds[0]}`}
 
@@ -988,9 +988,9 @@ function importExam(text){
     const d=JSON.parse(text); if(!d.items&&(d.daily||d.lessons||d.att)) return importBundle(d);
     if(!d.name||!Array.isArray(d.items)) throw new Error('name, items 가 필요해요.');
     const classIds=[...new Set((d.classIds||d.classes||[d.class]).filter(Boolean).map(resolveClass).filter(Boolean).map(c=>c.id))]; if(!classIds.length) throw new Error('파일 안의 반 이름(class 또는 classIds)을 명단에서 찾지 못했어요. 반 이름이나 별칭을 확인해 주세요.');
-    const n=d.items.length, def=Math.round(100/n*100)/100, date=d.date||today();
+    const n=d.items.length, def=Math.round((100-(+d.base||0))/n*100)/100, date=d.date||today();
     const old=DB.exams.find(x=>x.name===d.name&&x.date===date);
-    const e={id:old?old.id:uid(),name:d.name,type:d.type||'학력평가',date,classIds,roster:{},items:d.items.map(i=>({ans:i.ans==null?'':String(i.ans),unit:i.unit||'',kind:i.kind||'',pt:i.pt==null?def:+i.pt}))};
+    const e={id:old?old.id:uid(),name:d.name,type:d.type||'학력평가',date,classIds,roster:{},base:+d.base||0,items:d.items.map(i=>({ans:i.ans==null?'':String(i.ans),unit:i.unit||'',kind:i.kind||'',pt:i.pt==null?def:+i.pt}))};
     const ext=classIds.find(c=>cls(c).role==='외부'),made=[],miss=[];
     const find=nm=>{
       for(const cid of classIds){const ms=cls(cid).members;const m=ms.find(m=>m.id===nm||stu(m.id).eid===nm)||ms.find(m=>stu(m.id).name===nm);if(m)return {sid:m.id,cid}}
