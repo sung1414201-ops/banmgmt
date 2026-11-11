@@ -250,7 +250,7 @@ const attDay=(cid,d)=>((DB.att[cid]||{})[d])||{};
 function classTabs(cid,tab,c){const T=[['lesson','수업'],['att','출결'],['daily','일일테스트'],['exams','시험'],['report','리포트'],['roster','명단 ('+c.members.length+')']];return `<div class="tabs">${T.map(([k,t])=>`<a class="${tab===k?'on':''}" href="#/class/${cid}?tab=${k}">${t}</a>`).join('')}</div>`}
 function attPage(app,c,q){
   const cid=c.id,d=q.get('d')||today(),day=attDay(cid,d),dow=DOW[new Date(d+'T00:00:00').getDay()];
-  const ms=c.members, live=ms.filter(m=>!m.hold);
+  const ms=[...c.members,...Object.keys(day).filter(x=>stu(x)&&!c.members.some(m=>m.id===x)).map(x=>({id:x,hold:false}))], live=ms.filter(m=>!m.hold);
   const cnt={p:0,l:0,a:0,e:0};ms.forEach(m=>{const r=day[m.id];if(r&&r.s)cnt[r.s]++});const pend=live.filter(m=>!(day[m.id]&&day[m.id].s)).length;
   const nd=x=>`#/class/${cid}?tab=att&d=${x}`;
   app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'att',c)}
@@ -502,7 +502,12 @@ const CHK={o:['완료','#16a34a'],p:['일부','#d97706'],x:['미제출','#dc2626
 const hasTest=p=>p&&p.test!==undefined&&p.test!==null&&p.test!=='';
 const lessonOf=(cid,d)=>DB.lessons.find(l=>l.cid===cid&&l.date===d);
 const lessonHas=l=>!!(l.plan||l.done||l.hw||l.memo||Object.values(l.per||{}).some(p=>p&&(p.plan||p.done||p.hw||p.chk||p.note||hasTest(p))));
-function ensureLesson(cid,d){let l=lessonOf(cid,d);if(!l){l={id:uid(),cid,date:d,plan:'',done:'',hw:'',memo:'',tunit:'',tkind:'',tmax:10,per:{}};DB.lessons.push(l)}return l}
+function ensureLesson(cid,d){let l=lessonOf(cid,d);if(!l){l={id:uid(),cid,date:d,plan:'',done:'',hw:'',memo:'',tunit:'',tkind:'',tmax:10,per:{},sids:[]};DB.lessons.push(l)}
+  const c=cls(cid);if(c){const st=new Set(l.sids||[]);c.members.forEach(m=>st.add(m.id));l.sids=[...st]}return l}
+function lessonStudents(c,l){ // 옛 날짜는 그때 수업을 들은 학생까지 보여줘요
+  const ids=new Set(c.members.filter(m=>!m.hold).map(m=>m.id));
+  if(l){(l.sids||[]).forEach(x=>ids.add(x));Object.keys(l.per||{}).forEach(x=>ids.add(x))}
+  return [...ids].filter(x=>stu(x)&&(!stu(x).archived||(l&&l.per&&l.per[x]))).sort((a,b)=>stu(a).name.localeCompare(stu(b).name,'ko')).map(id=>({id,hold:false}))}
 const prevLesson=(cid,d)=>DB.lessons.filter(l=>l.cid===cid&&l.date<d&&lessonHas(l)).sort((a,b)=>b.date.localeCompare(a.date))[0];
 function prevStu(c,d,sid){ // 이 학생의 직전 수업(전날이 아니라 '지난 수업')
   const L=DB.lessons.filter(l=>l.cid===c.id&&l.date<d).sort((a,b)=>b.date.localeCompare(a.date));
@@ -546,7 +551,7 @@ const copyMsg=i=>copyText(MSGS[i]);
 function lessonPage(app,c,q){
   const cid=c.id,d=q.get('d')||today(),mode=LM(c),dow=dowOf(d);
   const l=lessonOf(cid,d)||{plan:'',done:'',hw:'',memo:'',tunit:'',tkind:'',tmax:10,per:{},date:d};
-  const ms=c.members.filter(m=>!m.hold),nav=x=>`#/class/${cid}?tab=lesson&d=${x}`;
+  const ms=lessonStudents(c,lessonOf(cid,d)),nav=x=>`#/class/${cid}?tab=lesson&d=${x}`;
   const pl=mode==='class'?prevLesson(cid,d):null;
   const chkBtns=(sid,cur)=>Object.entries(CHK).map(([k,[t,col]])=>`<button class="btn sm" style="${cur===k?`background:${col};border-color:${col};color:#fff;font-weight:700`:''}" onclick="setChk('${cid}','${d}','${sid}','${k}')">${t}</button>`).join('');
   const inp=(f,v,ph)=>`<input value="${esc(v||'')}" placeholder="${ph||''}" onchange="setL('${cid}','${d}','${f}',this.value)">`;
@@ -598,7 +603,7 @@ function copyLessonTo(cid,d){const t=[...document.querySelectorAll('.cp-c:checke
 function lessonBlock(sid){
   const rows=[];
   DB.lessons.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(l=>{const c=cls(l.cid);if(!c)return;const p=(l.per||{})[sid]||{},mode=LM(c);
-    const inCls=c.members.some(m=>m.id===sid);
+    const inCls=c.members.some(m=>m.id===sid)||(l.sids||[]).includes(sid)||!!(l.per||{})[sid];
     const done=mode==='indiv'?(p.done||p.plan):(inCls?(l.done||l.plan):''),hw=mode==='indiv'?p.hw:(inCls?l.hw:'');
     if(!(done||hw||p.chk||p.note||hasTest(p)))return;
     rows.push(`<tr><td>${mdd(l.date)}</td><td class="hide-s">${esc(c.name)}</td><td>${esc(done)||'-'}</td><td>${esc(hw)||'-'}</td><td>${p.chk?`<span style="color:${CHK[p.chk][1]}">${CHK[p.chk][0]}</span>`:'-'}</td><td>${hasTest(p)?p.test+'/'+(l.tmax||10):'-'}</td><td class="hide-s">${esc(p.note||'')}</td></tr>`)});
