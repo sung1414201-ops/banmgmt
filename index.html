@@ -247,6 +247,7 @@ const DOW=['일','월','화','수','목','금','토'];
 const dstr=t=>t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
 const shiftDate=(d,n)=>{const t=new Date(d+'T00:00:00');t.setDate(t.getDate()+n);return dstr(t)};
 const attDay=(cid,d)=>((DB.att[cid]||{})[d])||{};
+const periodTxt=c=>(c.start||c.end)?' · '+(c.start?c.start.slice(5).replace('-','/'):'')+'~'+(c.end?c.end.slice(5).replace('-','/'):''):'';
 function classTabs(cid,tab,c){const T=[['lesson','수업'],['att','출결'],['daily','일일테스트'],['exams','시험'],['report','리포트'],['roster','명단 ('+c.members.length+')']];return `<div class="tabs">${T.map(([k,t])=>`<a class="${tab===k?'on':''}" href="#/class/${cid}?tab=${k}">${t}</a>`).join('')}</div>`}
 function attPage(app,c,q){
   if(q.get('view')==='month')return attMonthPage(app,c,q);
@@ -254,7 +255,7 @@ function attPage(app,c,q){
   const ms=[...c.members,...Object.keys(day).filter(x=>stu(x)&&!c.members.some(m=>m.id===x)).map(x=>({id:x,hold:false}))], live=ms.filter(m=>!m.hold);
   const cnt={p:0,l:0,a:0,e:0};ms.forEach(m=>{const r=day[m.id];if(r&&r.s)cnt[r.s]++});const pend=live.filter(m=>!(day[m.id]&&day[m.id].s)).length;
   const nd=x=>`#/class/${cid}?tab=att&d=${x}`;
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'att',c)}${attToggle(cid,'day')}
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}</span></div>${classTabs(cid,'att',c)}${attToggle(cid,'day')}
   <div class="row" style="margin-bottom:10px"><button class="btn" onclick="location.hash='${nd(shiftDate(d,-1))}'">◀</button><input type="date" value="${d}" onchange="location.hash='#/class/${cid}?tab=att&d='+this.value"><button class="btn" onclick="location.hash='${nd(shiftDate(d,1))}'">▶</button><button class="btn sm" onclick="location.hash='${nd(today())}'">오늘</button><b>${dow}요일</b>${c.days&&!c.days.includes(dow)?'<span class="badge">수업 요일 아님</span>':''}<span class="sp"></span><button class="btn sm" onclick="attAll('${cid}','${d}')">전원 출석</button><button class="btn sm danger" onclick="attClear('${cid}','${d}')">이 날 기록 지우기</button></div>
   <div class="sub" style="margin-bottom:8px">출석 ${cnt.p} · 지각 ${cnt.l} · 결석 ${cnt.a} · 조퇴 ${cnt.e} · 미입력 ${pend}</div>
   ${ms.map(m=>{const s=stu(m.id),r=day[m.id]||{};
@@ -455,7 +456,7 @@ function dSum(d){const v=Object.values(d.scores).filter(x=>x!==''&&x!=null).map(
   return `응시 ${v.length}명 · 평균 ${fmt(avg(v))}/${d.max} (${f0(avg(v)/d.max*100)}%) · 최고 ${fmt(Math.max(...v))} · 최저 ${fmt(Math.min(...v))}`}
 function dailyPage(app,c){
   const cid=c.id,list=DB.daily.filter(d=>d.cid===cid).sort((a,b)=>b.date.localeCompare(a.date));
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'daily',c)}
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}</span></div>${classTabs(cid,'daily',c)}
   <div class="row" style="margin-bottom:10px"><button class="btn pri" onclick="addDaily('${cid}')">+ 일일테스트 기록</button><span class="sub">날짜·단원·유형·만점을 정하고 학생별 점수를 입력하면 자동 저장돼요. 학생 ID로 계속 쌓여서 성장 리포트에 반영돼요.</span></div>
   <datalist id="ul">${allUnits().map(u=>`<option value="${esc(u)}">`).join('')}</datalist><datalist id="kl">${allKinds().map(u=>`<option value="${esc(u)}">`).join('')}</datalist>
   ${list.map(d=>dailyCard(c,d)).join('')||'<p class="note">아직 일일테스트 기록이 없어요. 점수 이미지를 Claude에게 주면 한 번에 등록해 드려요.</p>'}`;
@@ -493,7 +494,7 @@ function reportPage(app,c){
   rows.sort((a,b)=>(b.cur==null?-1:b.cur)-(a.cur==null?-1:a.cur));
   const merge=key=>{const S={};c.members.forEach(m=>Object.entries(seriesBy(m.id,key)).forEach(([k,a])=>(S[k]=S[k]||[]).push(...a)));Object.values(S).forEach(a=>a.sort((x,y)=>x.date.localeCompare(y.date)));return bucketSeries(S,mode)};
   const curL=mode==='a'?'전체 평균':(ck?bLabel(ck,mode):'최근')+' 평균',prevL=mode==='a'?'전반':(pk?bLabel(pk,mode):'이전');
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(c.id,'report',c)}
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}</span></div>${classTabs(c.id,'report',c)}
   ${periodBtns(mode)}<p class="sub">정규시험과 일일테스트를 만점 대비 %로 환산해 ${mode==='a'?'전체 기록 평균':'가장 최근 기간 평균'}으로 줄 세운 순위예요. 이름을 누르면 개인 성장 리포트가 열려요.</p>
   <div class="scroll" style="max-height:none"><table class="t"><tr><th>#</th><th>이름</th><th>누적</th><th>최근 점수</th><th>${esc(curL)}</th><th>${esc(prevL)}</th><th>변화</th><th>추이</th><th class="hide-s">보완 필요·하락</th><th class="hide-s">개선된 단원</th></tr>${rows.map((r,i)=>`<tr class="${r.m.hold?'hold':''}"><td>${r.cur!=null?i+1:'-'}</td><td><a href="#/student/${r.m.id}" style="color:inherit">${esc(stu(r.m.id).name)}</a></td><td>${r.R.length}</td><td>${r.R.length?fmt(r.R[r.R.length-1].sc)+'/'+fmt(r.R[r.R.length-1].max):'-'}</td><td><b>${pctS(r.cur)}</b></td><td>${pctS(r.prev)}</td><td style="color:${r.diff>0?'#16a34a':r.diff<0?'#dc2626':'#888'}">${r.diff!=null?sgn(r.diff):'-'}</td><td>${sparkV(r.vals)}</td><td class="hide-s weak">${esc(r.weak.join(', '))||'-'}</td><td class="hide-s" style="color:#16a34a">${esc(r.up.join(', '))||'-'}</td></tr>`).join('')}</table></div>
   <h3>반 전체 단원별 흐름</h3>${trendMatrix(merge('unit'),'단원',mode)}<h3>반 전체 유형별 흐름</h3>${trendMatrix(merge('kind'),'유형',mode)}`;
@@ -582,7 +583,7 @@ function lessonPage(app,c,q){
       return `<tr><td style="white-space:nowrap"><a href="#/student/${m.id}" style="color:inherit">${esc(stu(m.id).name)}</a>${a.s?` <span class="badge" style="background:${AST[a.s][1]};color:#fff">${AST[a.s][0]}</span>`:''}</td><td style="white-space:nowrap">${chkBtns(m.id,p.chk)}</td><td><input type="number" step="0.5" inputmode="decimal" style="width:64px" value="${hasTest(p)?p.test:''}" onchange="setP('${cid}','${d}','${m.id}','test',this.value)"></td><td>${pin(m.id,'note',p.note,'')}</td></tr>`}).join('')}</table></div>`;
   }
   const others=activeClasses().filter(x=>x.id!==cid&&x.role!=='외부');
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'lesson',c)}
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}</span></div>${classTabs(cid,'lesson',c)}
   <div class="row" style="margin-bottom:10px"><button class="btn" onclick="location.hash='${nav(stepClassDay(c,d,-1))}'">◀ 이전 수업일</button><input type="date" value="${d}" onchange="location.hash='#/class/${cid}?tab=lesson&d='+this.value"><button class="btn" onclick="location.hash='${nav(stepClassDay(c,d,1))}'">다음 수업일 ▶</button><button class="btn sm" onclick="location.hash='${nav(today())}'">오늘</button><b>${mdd(d)}</b>${c.days&&!c.days.includes(dow)?'<span class="badge">수업 요일 아님</span>':''}<span class="sp"></span><select onchange="setLMode('${cid}',this.value)"><option value="" ${!c.lessonMode?'selected':''}>방식: 자동(${mode==='indiv'?'학생별':'전체'})</option><option value="class" ${c.lessonMode==='class'?'selected':''}>전체 공통</option><option value="indiv" ${c.lessonMode==='indiv'?'selected':''}>학생별 개별</option></select></div>
   ${body}
   ${mode==='class'&&others.length?`<details style="margin-top:12px"><summary class="sub">다른 반에도 같은 내용으로 기록 (계획·진행·과제·메모 복사)</summary><div class="card" style="margin-top:6px"><div class="row">${others.map(x=>`<label><input type="checkbox" class="cp-c" value="${x.id}"> ${esc(x.name)}</label>`).join(' ')}</div><div class="row" style="margin-top:8px"><button class="btn sm pri" onclick="copyLessonTo('${cid}','${d}')">선택한 반에 복사</button><span class="sub">같은 날짜의 해당 반 기록에 덮어써요. 실수하면 상단 [되돌리기]를 누르세요.</span></div></div></details>`:''}
@@ -702,7 +703,7 @@ function attMonthPage(app,c,q){
   const mv=n=>`#/class/${cid}?tab=att&view=month&m=${ymShift(ym,n)}`;
   const card=(t,v,col,sub)=>`<div class="card" style="flex:1;min-width:110px;padding:10px 12px"><div class="sub">${t}</div><div class="sc" style="color:${col||'inherit'}">${v}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
   const watch=S.rows.filter(r=>r.k.a>=2||r.k.l>=3||(r.rate!=null&&r.rate<80)).sort((a,b)=>b.k.a-a.k.a||b.k.l-a.k.l);
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span></div>${classTabs(cid,'att',c)}${attToggle(cid,'month',ym)}
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}</span></div>${classTabs(cid,'att',c)}${attToggle(cid,'month',ym)}
   <div class="row" style="margin-bottom:10px"><button class="btn" onclick="location.hash='${mv(-1)}'">◀</button><b style="font-size:17px">${ymLabel(ym)}</b><button class="btn" onclick="location.hash='${mv(1)}'">▶</button><button class="btn sm" onclick="location.hash='#/class/${cid}?tab=att&view=month'">이번 달</button><span class="sp"></span><button class="btn sm" onclick="printAttMonth('${cid}','${ym}')">인쇄</button></div>
   <div class="row" style="margin-bottom:10px">${card('반 출석률',S.rate==null?'-':S.rate+'%',S.rate!=null&&S.rate<85?'#dc2626':'#16a34a','출석+지각+조퇴 ÷ 기록된 칸')}${card('결석',S.tot.a+'건','#dc2626')}${card('지각',S.tot.l+'건','#b45309')}${card('조퇴',S.tot.e+'건','#2563eb')}${card('입력한 수업일',S.inputDays+'일','',`이번 달 수업일 ${S.regDays}일 중`)}</div>
   <div class="sub" style="margin-bottom:6px"><span style="color:#16a34a;font-weight:700">○</span> 출석 · <span style="color:#b45309;font-weight:700">지</span> 지각 · <span style="color:#dc2626;font-weight:700">✕</span> 결석 · <span style="color:#2563eb;font-weight:700">조</span> 조퇴 · <span style="color:#bbb">·</span> 그날 미입력 · <span style="color:#bbb">–</span> 그날 입력 없음 · • 메모 있음(칸에 대면 보여요) · 날짜 옆 * 는 정규 요일이 아닌 보강일 · 이름을 누르면 학생 달력</div>
@@ -750,7 +751,7 @@ function home(app){
   const card=c=>{const ex=examsOf(c.id)[0];
     return `<div class="card click ${c.archived?'hold':''}" onclick="location.hash='#/class/${c.id}'">
       <div class="row"><b>${esc(c.name)}</b><span class="sp"></span>${roleBadge(c.role)}</div>
-      <div class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${c.members.some(m=>m.hold)?' (휴원 포함)':''}</div>
+      <div class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}${c.members.some(m=>m.hold)?' (휴원 포함)':''}</div>
       <div class="sub" style="margin-top:6px">${ex?`최근: ${esc(ex.name)} · 평균 ${fmt(examAvg(ex))}점`:'등록된 시험 없음'}</div></div>`};
   app.innerHTML=`<div class="row"><h2 style="margin:0">내 반</h2><span class="sp"></span>${DB.roster.classes.some(c=>c.members.some(m=>m.hold))?`<button class="btn sm" onclick="releaseAll()">휴원 전원 복귀</button>`:''}<button class="btn sm" onclick="location.hash='#/students'">학생 전체</button><button class="btn sm pri" onclick="location.hash='#/classedit/new'">+ 반 추가</button></div>
     ${todayBlock()}<div class="grid" style="margin-top:10px">${act.map(card).join('')}</div>
@@ -787,7 +788,7 @@ function classPage(app,cid,tab,q){
       <td style="text-align:right;white-space:nowrap"><button class="btn sm pri" onclick="location.hash='#/exam/${e.id}?c=${cid}&tab=analysis'">분석·상담</button> <button class="btn sm" onclick="location.hash='#/exam/${e.id}?c=${cid}&tab=grade'">결과표</button> <button class="btn sm" onclick="location.hash='#/exam/${e.id}/edit'">수정</button> <button class="btn sm danger" onclick="delExam('${e.id}')">삭제</button></td></tr>`}).join('')+`</table>`
       :`<p class="note">아직 시험이 없어요. 시험지 PDF와 채점 이미지를 Claude에게 주면 이 반에 등록해 드려요.</p>`);
   }
-  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명</span>${c.archived?'<span class="badge">보관됨</span>':''}</div>${tabs}${body}`;
+  app.innerHTML=`<div class="row"><h2 style="margin:0">${esc(c.name)}</h2>${roleBadge(c.role)}<span class="sub">${c.days?esc(c.days)+' · ':''}${c.members.length}명${periodTxt(c)}</span>${c.archived?'<span class="badge">보관됨</span>':''}</div>${tabs}${body}`;
 }
 function delExam(id){const e=DB.exams.find(x=>x.id===id);if(!confirm(`'${e.name}' 시험과 등록된 결과·평가를 모두 삭제할까요? 되돌릴 수 없어요.`))return;
   DB.exams=DB.exams.filter(x=>x.id!==id);delete DB.results[id];delete DB.notes[id];save();render()}
@@ -808,15 +809,16 @@ function classEdit(app,cid){
    <label>요일 <input id="cd" value="${esc(c.days)}" placeholder="월금" style="width:90px"></label>
    <label>역할 <select id="cr">${['담임','부담임','성적관리','외부'].map(r=>`<option ${r===c.role?'selected':''}>${r}</option>`).join('')}</select></label>
    <label>수업 기록 <select id="cm"><option value="" ${!c.lessonMode?'selected':''}>자동</option><option value="class" ${c.lessonMode==='class'?'selected':''}>전체 공통</option><option value="indiv" ${c.lessonMode==='indiv'?'selected':''}>학생별 개별</option></select></label>
-   <label>별칭 <input id="ca" value="${esc((c.alias||[]).join(', '))}" placeholder="이미지에 적힌 반 이름, 쉼표로 구분" style="width:240px"></label></div>
+   <label>별칭 <input id="ca" value="${esc((c.alias||[]).join(', '))}" placeholder="이미지에 적힌 반 이름, 쉼표로 구분" style="width:240px"></label>
+   <label>기간 <input type="date" id="cs" value="${esc(c.start||'')}"> ~ <input type="date" id="ce" value="${esc(c.end||'')}"></label></div>
    <div class="row" style="margin-top:12px"><button class="btn pri" onclick="saveClass('${cid}')">저장</button>
    ${isNew?'':`<button class="btn" onclick="archiveClass('${cid}')">${c.archived?'보관 해제':'보관(종료)'}</button><button class="btn danger" onclick="delClass('${cid}')">삭제</button>`}
    <button class="btn" onclick="history.back()">취소</button></div></div>
    <p class="note" style="margin-top:12px">종료한 반은 [보관]하면 홈에서 숨겨지고 기록은 남아요. 시험 기록이 없는 반만 삭제할 수 있어요.</p>`;
 }
 function saveClass(cid){const name=$('#cn').value.trim();if(!name)return alert('반 이름을 입력해 주세요.');
-  if(cid==='new'){const id='c'+uid().slice(1);DB.roster.classes.push({id,name,days:$('#cd').value.trim(),role:$('#cr').value,lessonMode:$('#cm').value,alias:$('#ca').value.split(',').map(x=>x.trim()).filter(Boolean),members:[]});save();location.hash='#/class/'+id+'?tab=roster';return}
-  const c=cls(cid);c.name=name;c.days=$('#cd').value.trim();c.role=$('#cr').value;c.lessonMode=$('#cm').value;c.alias=$('#ca').value.split(',').map(x=>x.trim()).filter(Boolean);save();location.hash='#/class/'+cid}
+  if(cid==='new'){const id='c'+uid().slice(1);DB.roster.classes.push({id,name,days:$('#cd').value.trim(),role:$('#cr').value,lessonMode:$('#cm').value,start:$('#cs').value,end:$('#ce').value,alias:$('#ca').value.split(',').map(x=>x.trim()).filter(Boolean),members:[]});save();location.hash='#/class/'+id+'?tab=roster';return}
+  const c=cls(cid);c.name=name;c.days=$('#cd').value.trim();c.role=$('#cr').value;c.lessonMode=$('#cm').value;c.start=$('#cs').value;c.end=$('#ce').value;c.alias=$('#ca').value.split(',').map(x=>x.trim()).filter(Boolean);save();location.hash='#/class/'+cid}
 function archiveClass(cid){const c=cls(cid);c.archived=!c.archived;save();location.hash='#/'}
 function delClass(cid){if(examsOf(cid).length)return alert('시험 기록이 있는 반은 삭제할 수 없어요. [보관]을 사용해 주세요.');
   if(!confirm('이 반을 삭제할까요? (학생 정보는 [학생 전체]에 남아요)'))return;DB.roster.classes=DB.roster.classes.filter(c=>c.id!==cid);save();location.hash='#/'}
