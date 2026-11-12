@@ -211,7 +211,14 @@ function score(e,sid){
   const r=(DB.results[e.id]||{})[sid]; if(!r) return null;
   if(r.total!==undefined&&r.total!==null&&r.total!=='') return +r.total;
   if(!r.m||!r.m.some(v=>v!==null&&v!==undefined)) return null;
-  return (+e.base||0)+r.m.reduce((s,v,i)=>s+(+e.items[i].pt||0)*(+v||0),0);
+  const P=scoreParts(e,sid);return P.base+P.raw+P.part;
+}
+function qv(r,i){const v0=r&&r.m?r.m[i]:null;if(v0==null)return null;const v=+v0||0;if(v>=1)return 1;if(v>0)return v;return Math.min(1,+((r.p||{})[i])||0)} // 문항 정답 비율(부분점수 포함)
+function scoreParts(e,sid){ // {base, raw(정답 배점), part(부분점수), fixed(직접 입력 점수)}
+  const r=(DB.results[e.id]||{})[sid];if(!r)return null;
+  if(!r.m||!r.m.some(v=>v!=null))return (r.total!=null&&r.total!=='')?{base:0,raw:+r.total,part:0,fixed:true}:null;
+  let raw=0,part=0;r.m.forEach((v0,i)=>{const pt=+((e.items[i]||{}).pt)||0,v=+v0||0;if(v>=1)raw+=pt;else if(v>0)part+=pt*v;else part+=pt*Math.min(1,+((r.p||{})[i])||0)});
+  const fixed=r.total!=null&&r.total!=='';return {base:+e.base||0,raw,part,fixed};
 }
 const fmt=n=>n==null?'-':(Math.round(n*10)/10);
 function avg(a){a=a.filter(v=>v!=null);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
@@ -220,7 +227,7 @@ function unitStats(sids,exams,key='unit'){ // {이름:{c,n}}
   const U={};
   exams.forEach(e=>sids.forEach(sid=>{const r=(DB.results[e.id]||{})[sid];if(!r||!r.m)return;
     r.m.forEach((v,i)=>{if(v===null||v===undefined)return;const u=(e.items[i][key]||'').trim()||(key==='kind'?'(유형 미지정)':'(단원 미지정)');
-      (U[u]=U[u]||{c:0,n:0}).n++;U[u].c+=(+v||0);})}));
+      (U[u]=U[u]||{c:0,n:0}).n++;U[u].c+=qv(r,i);})}));
   return U;
 }
 function weakUnits(sid,exams){const U=unitStats([sid],exams);return Object.entries(U).filter(([u,s])=>s.n>=2&&s.c/s.n<0.6).sort((a,b)=>a[1].c/a[1].n-b[1].c/b[1].n)}
@@ -322,7 +329,7 @@ function recsOf(sid,trk){
 function seriesBy(sid,key,trk){ // {단원 또는 유형:[{date,c,n}]}
   const S={};
   DB.exams.forEach(e=>{const r=(DB.results[e.id]||{})[sid];if(!r||!r.m)return;if(!matchTrack(examClass(e,sid),trk))return;const U={};
-    r.m.forEach((v,i)=>{if(v==null)return;const u=(e.items[i][key]||'').trim();if(!u)return;const x=(U[u]=U[u]||{c:0,n:0});x.n++;x.c+=(+v||0)});
+    r.m.forEach((v,i)=>{if(v==null)return;const u=(e.items[i][key]||'').trim();if(!u)return;const x=(U[u]=U[u]||{c:0,n:0});x.n++;x.c+=qv(r,i)});
     Object.entries(U).forEach(([u,x])=>(S[u]=S[u]||[]).push({date:e.date,c:x.c,n:x.n}))});
   DB.daily.forEach(d=>{const v=d.scores[sid];if(v===undefined||v===null||v==='')return;if(!matchTrack(d.cid,trk))return;const u=(d[key]||'').trim();if(!u)return;(S[u]=S[u]||[]).push({date:d.date,c:+v,n:+d.max||100})});
   DB.lessons.forEach(l=>{const p=(l.per||{})[sid];if(!hasTest(p))return;if(!matchTrack(l.cid,trk))return;const u=((key==='unit'?l.tunit:l.tkind)||'').trim();if(!u)return;(S[u]=S[u]||[]).push({date:l.date,c:+p.test,n:+l.tmax||100})});
@@ -744,7 +751,7 @@ function cellsOf(sids,cid,cat){
   const S=new Set(sids),out=[];
   const ok=c=>cid?c===cid:!isNaesinCls(c);
   DB.exams.forEach(e=>{const R=DB.results[e.id]||{};Object.keys(R).forEach(sid=>{if(!S.has(sid))return;if(!ok(examClass(e,sid)))return;if(cat&&e.type!==cat)return;const r=R[sid];if(!r||!r.m)return;
-    r.m.forEach((v,i)=>{if(v==null)return;const it=e.items[i];out.push({sid,type:e.type,unit:(it.unit||'').trim(),kind:(it.kind||'').trim(),c:+v||0,n:1,src:e.name,date:e.date,q:i+1,ans:it.ans||''})})})});
+    r.m.forEach((v,i)=>{if(v==null)return;const it=e.items[i];out.push({sid,type:e.type,unit:(it.unit||'').trim(),kind:(it.kind||'').trim(),c:qv(r,i),n:1,src:e.name,date:e.date,q:i+1,ans:it.ans||''})})})});
   DB.daily.forEach(d=>{if(cat||!ok(d.cid))return;Object.entries(d.scores).forEach(([sid,v])=>{if(!S.has(sid)||v===''||v==null)return;out.push({sid,type:'일일테스트',unit:(d.unit||'').trim(),kind:(d.kind||'').trim(),c:+v,n:+d.max||100,src:'일일테스트 '+d.date,date:d.date,q:null,ans:''})})});
   DB.lessons.forEach(l=>{if(cat||!ok(l.cid))return;Object.entries(l.per||{}).forEach(([sid,p])=>{if(!S.has(sid)||!hasTest(p))return;out.push({sid,type:'수업 TEST',unit:(l.tunit||'').trim(),kind:(l.tkind||'').trim(),c:+p.test,n:+l.tmax||100,src:'수업 TEST '+l.date,date:l.date,q:null,ans:''})})});
   return out;
@@ -826,7 +833,7 @@ function naesinStudentBlock(sid){
   const ex=DB.exams.filter(e=>score(e,sid)!=null&&matchTrack(examClass(e,sid),'내신')).sort((a,b)=>b.date.localeCompare(a.date));
   const notes=ex.map(e=>({e,n:noteOf(e,sid)})).filter(x=>x.n);
   return `<div class="card" style="border:2px solid #b45309;margin-top:18px"><h2 style="margin:0 0 6px;color:#b45309">내신 기록 <span class="sub">(정규 기록과 따로 보관)</span></h2>
-  ${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점</div><div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>\n${esc(n.advice)}</div></div>`).join(''):''}
+  ${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점${bdTxt(e,sid)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>\n${esc(n.advice)}</div></div>`).join(''):''}
   <h3>내신 성장 리포트</h3>${growthBlock(sid,'내신')}<h3>내신 출결</h3>${attCalendar(sid,'내신')}${attBlock(sid,'내신')}<h3>내신 수업 기록</h3>${lessonBlock(sid,'내신')}</div>`;
 }
 /* ===== 성적 문자 / 결과표 직접 편집 (내신) ===== */
@@ -843,13 +850,14 @@ function prevExamOf(e,sid){
 }
 function weakInExam(e,sid){
   const r=(DB.results[e.id]||{})[sid];if(!r||!r.m)return [];const U={};
-  r.m.forEach((v,i)=>{if(v==null)return;const u=((e.items[i]||{}).unit||'').trim();if(!u)return;const t=(U[u]=U[u]||{c:0,n:0});t.n++;t.c+=(+v||0)});
+  r.m.forEach((v,i)=>{if(v==null)return;const u=((e.items[i]||{}).unit||'').trim();if(!u)return;const t=(U[u]=U[u]||{c:0,n:0});t.n++;t.c+=qv(r,i)});
   return Object.entries(U).filter(([u,t])=>t.c<t.n).sort((a,b)=>a[1].c/a[1].n-b[1].c/b[1].n).slice(0,3).map(([u,t])=>`${u}(${fmt(t.n-t.c)}문항 오답)`);
 }
 function scoreMsg(e,c,sid,o){
   const s=stu(sid),sc=score(e,sid),max=totalPt(e)||100;if(sc==null)return null;
   const scs=examStudents(e,c.id).map(m=>score(e,m.id)).filter(v=>v!=null),av=avg(scs),n=scs.length;
   const L=[`[${s.name} 학생] ${mdd(e.date)} ${e.name} 결과`,`• 점수: ${fmt(sc)}점 / ${fmt(max)}점`];
+  {const P=scoreParts(e,sid);if(P&&P.part>0)L[1]+=` (부분점수 ${fmt(P.part)}점 포함)`}
   if(o.avg&&n>1)L.push(`• 반 평균: ${fmt(av)}점 (${sc-av>=0?'+':''}${fmt(sc-av)})`);
   if(o.rank&&n>1)L.push(`• 등수: ${1+scs.filter(x=>x>sc).length}등 / ${n}명`);
   const pv=o.prev?prevExamOf(e,sid):null;
@@ -894,6 +902,50 @@ function typePreset(t){syncMeta();const e=DRAFT;if(e._existing)return;
   const mk=(n,pt,kind)=>Array.from({length:n},()=>({ans:'',unit:'',kind:kind||'',pt}));
   e.items=t==='서술테스트'?mk(5,20,'서술'):mk(20,5);
   examEditor($('#app'),e._existing,e._id.replace('new:',''))}
+/* ===== 부분점수·오답 이유 기록 ===== */
+const CAUSES=['계산 실수','부호 실수','개념 부족','조건 해석 오류','풀이 중단(미완성)','식 설정 오류','풀이 없음(답만)','시간 부족·미응시','판독 불가','기타'];
+function bdTxt(e,sid){const P=scoreParts(e,sid);if(!P||P.fixed)return '';if(!(P.part>0||P.base>0))return '';return ` <span class="sub">(원점수 ${fmt(P.raw)}${P.part>0?' + 부분 '+fmt(P.part):''}${P.base>0?' + 기본 '+fmt(P.base):''})</span>`}
+function whyList(e,sid){
+  const r=(DB.results[e.id]||{})[sid];if(!r)return '';
+  const ks=[...new Set([...Object.keys(r.w||{}),...Object.keys(r.p||{})])].map(Number).sort((a,b)=>a-b);
+  return ks.map(i=>{const w=(r.w||{})[i]||{},pf=+((r.p||{})[i])||0,pt=+((e.items[i]||{}).pt)||0;
+    return `<div class="sub" style="margin-top:2px">• ${i+1}번${pf>0?` <b style="color:#d97706">부분 ${fmt(pf*pt)}점</b>`:''}${w.c?` [${esc(w.c)}]`:''} ${esc(w.t||'')}</div>`}).join('');
+}
+function causeTable(e,ids){
+  const C={};ids.forEach(sid=>{const r=(DB.results[e.id]||{})[sid];if(!r||!r.w)return;Object.values(r.w).forEach(w=>{const c=w.c||'(원인 미기록)';(C[c]=C[c]||[]).push(stu(sid).name)})});
+  const k=Object.keys(C);if(!k.length)return '';
+  return `<h3>오답 원인 (이 시험)</h3><table class="t"><tr><th>원인</th><th>건수</th><th>학생</th></tr>${k.sort((a,b)=>C[b].length-C[a].length).map(c=>`<tr><td>${esc(c)}</td><td>${C[c].length}</td><td class="sub">${esc([...new Set(C[c])].join(', '))}</td></tr>`).join('')}</table>`;
+}
+function causeBlock(sid){
+  const rows=[];
+  DB.exams.forEach(e=>{const r=(DB.results[e.id]||{})[sid];if(!r)return;
+    new Set([...Object.keys(r.w||{}),...Object.keys(r.p||{})]).forEach(k=>{const i=+k,w=(r.w||{})[k]||{},pf=+((r.p||{})[k])||0,it=e.items[i]||{};
+      rows.push({e,i,c:w.c||'(원인 미기록)',t:w.t||'',pp:pf*(+it.pt||0),unit:it.unit||''})})});
+  if(!rows.length)return '';
+  const C={};rows.forEach(x=>{C[x.c]=(C[x.c]||0)+1});
+  rows.sort((a,b)=>b.e.date.localeCompare(a.e.date)||a.i-b.i);
+  return `<h3>오답 원인 기록 (누적)</h3><div class="row">${Object.entries(C).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<span class="badge">${esc(c)} ${n}</span>`).join('')}</div>
+  <div class="scroll" style="max-height:none"><table class="t" style="margin-top:6px"><tr><th>날짜</th><th>시험</th><th>번호</th><th class="hide-s">단원</th><th>원인</th><th>이유</th><th>부분</th></tr>${rows.slice(0,80).map(x=>`<tr><td>${esc(x.e.date.slice(5))}</td><td>${esc(x.e.name.slice(0,18))}</td><td>${x.i+1}번</td><td class="hide-s">${esc(x.unit)}</td><td>${esc(x.c)}</td><td>${esc(x.t)}</td><td>${x.pp>0?fmt(x.pp)+'점':'-'}</td></tr>`).join('')}</table></div>`;
+}
+let PART=null;
+function repart(){const p=$('#pane');if(!p||!PART)return;const y=window.scrollY;partPane(p,PART.e,PART.c);window.scrollTo(0,y)}
+function setPart(eid,sid,i,v){const e=DB.exams.find(x=>x.id===eid),r=resRec(e,sid),pt=+e.items[i].pt||0;
+  if(+r.m[i]>0&&+r.m[i]<1)r.m[i]=0; // 예전 △ 값은 부분점수로 옮김
+  r.p=r.p||{};const f=(v===''||!pt)?0:Math.max(0,Math.min(1,(+v||0)/pt));
+  if(f>0)r.p[i]=f;else delete r.p[i];save();repart()}
+function setWhy(eid,sid,i,k,v){const e=DB.exams.find(x=>x.id===eid),r=resRec(e,sid);r.w=r.w||{};const o=(r.w[i]=r.w[i]||{});o[k]=(v||'').trim();if(!o.c&&!o.t)delete r.w[i];save()}
+function partPane(pane,e,c){
+  PART={e,c};
+  const ids=examStudents(e,c.id).map(m=>m.id).filter(s=>{const r=(DB.results[e.id]||{})[s];return r&&(r.m||r.total!=null)}).sort((a,b)=>(score(e,b)??-1)-(score(e,a)??-1));
+  const chip=(t,v,col)=>`<span class="badge" style="background:${col||'var(--line)'};color:${col?'#fff':'var(--sub)'}">${t} ${v}</span>`;
+  pane.innerHTML=`<p class="note"><b>원점수</b>는 정답 문항의 배점 합, <b>부분점수</b>는 틀린 문항에 풀이를 쓴 만큼 준 점수예요. 틀린 문항마다 부분점수(점), 오답 원인, 이유를 적어 두면 학생별로 쌓여서 약점 분석에 쓰여요.</p>
+  <datalist id="cl">${CAUSES.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+  ${ids.map(sid=>{const P=scoreParts(e,sid),r=DB.results[e.id][sid],tot=score(e,sid);
+    const bad=e.items.map((it,i)=>({it,i,v:r.m?r.m[i]:null})).filter(x=>x.v==null||+x.v<1||((r.p||{})[x.i]>0));
+    return `<div class="card" style="margin-top:10px"><div class="row"><b><a href="#/student/${sid}" style="color:inherit">${esc(stu(sid).name)}</a></b>${chip('원점수',fmt(P.raw))}${chip('부분점수',fmt(P.part),P.part>0?'#d97706':'')}${P.base>0?chip('기본',fmt(P.base)):''}${chip('총합',fmt(tot)+'점','#1968b3')}${P.fixed?'<span class="sub">(직접 입력한 점수)</span>':''}</div>
+    ${bad.length?`<div class="scroll" style="max-height:none"><table class="t" style="margin-top:6px"><tr><th>번호</th><th class="hide-s">단원·유형</th><th>배점</th><th>부분점수</th><th>원인</th><th>이유</th></tr>${bad.map(({it,i,v})=>{const w=(r.w||{})[i]||{},pf=+((r.p||{})[i])||(+v>0&&+v<1?+v:0);
+      return `<tr><td>${i+1}번</td><td class="hide-s sub">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${fmt(+it.pt||0)}</td><td><input type="number" step="0.5" min="0" max="${+it.pt||0}" style="width:58px" value="${pf>0?fmt(pf*(+it.pt||0)):''}" onchange="setPart('${e.id}','${sid}',${i},this.value)"></td><td><input list="cl" style="width:130px" value="${esc(w.c||'')}" onchange="setWhy('${e.id}','${sid}',${i},'c',this.value)"></td><td><input style="width:100%;min-width:200px" value="${esc(w.t||'')}" onchange="setWhy('${e.id}','${sid}',${i},'t',this.value)"></td></tr>`}).join('')}</table></div>`:'<div class="sub" style="margin-top:6px">틀린 문항이 없어요.</div>'}</div>`}).join('')||'<p class="note">결과가 입력된 학생이 없어요.</p>'}`;
+}
 /* ===== 명단 편집 도우미 (반·학생은 언제든 바뀔 수 있어요) ===== */
 const ko=(a,b)=>a.name.localeCompare(b.name,'ko');
 const sortMembers=c=>c.members.sort((a,b)=>stu(a.id).name.localeCompare(stu(b.id).name,'ko'));
@@ -1049,46 +1101,51 @@ function saveExam(){syncMeta();const e=DRAFT;
 
 /* ===== 결과표 / 분석 ===== */
 const noteOf=(e,sid)=>{const n=(DB.notes[e.id]||{})[sid];return n&&(n.eval||n.advice)?n:null};
-const wrongList=(e,sid)=>{const r=(DB.results[e.id]||{})[sid];return r&&r.m?r.m.map((v,i)=>(v!=null&&v<1)?(v>0?(i+1)+'(부분)':i+1):null).filter(Boolean):[]};
+const wrongList=(e,sid)=>{const r=(DB.results[e.id]||{})[sid];return r&&r.m?r.m.map((v,i)=>(v!=null&&v<1)?((v>0||+((r.p||{})[i])>0)?(i+1)+'(부분)':i+1):null).filter(Boolean):[]};
 function examPage(app,id,cid,tab){
   const e=DB.exams.find(x=>x.id===id); if(!e) return home(app);
   cid=cid&&e.classIds.includes(cid)?cid:e.classIds[0];
   const c=cls(cid);
   const sel=e.classIds.length>1?`<select onchange="location.hash='#/exam/${id}?c='+this.value+'&tab=${tab}'">${e.classIds.map(x=>`<option value="${x}" ${x===cid?'selected':''}>${esc(cls(x).name)}</option>`).join('')}</select>`:'';
   app.innerHTML=`<div class="row"><button class="btn sm" onclick="location.hash='#/class/${cid}'">← ${esc(c.name)}</button><b>${esc(e.name)}</b><span class="badge">${esc(e.type)}</span><span class="sub">${esc(e.date)}</span>${sel}</div>
-  <div class="tabs" style="margin-top:10px"><a class="${tab==='analysis'?'on':''}" href="#/exam/${id}?c=${cid}&tab=analysis">분석·상담</a><a class="${tab==='grade'?'on':''}" href="#/exam/${id}?c=${cid}&tab=grade">결과표·오답 입력</a><a class="${tab==='msg'?'on':''}" href="#/exam/${id}?c=${cid}&tab=msg">문자</a></div><div id="pane"></div>`;
-  tab==='grade'?resultGrid($('#pane'),e,c):tab==='msg'?msgPane($('#pane'),e,c):analysis($('#pane'),e,c);
+  <div class="tabs" style="margin-top:10px"><a class="${tab==='analysis'?'on':''}" href="#/exam/${id}?c=${cid}&tab=analysis">분석·상담</a><a class="${tab==='grade'?'on':''}" href="#/exam/${id}?c=${cid}&tab=grade">결과표·오답 입력</a><a class="${tab==='msg'?'on':''}" href="#/exam/${id}?c=${cid}&tab=msg">문자</a><a class="${tab==='part'?'on':''}" href="#/exam/${id}?c=${cid}&tab=part">부분점수·이유</a></div><div id="pane"></div>`;
+  tab==='grade'?resultGrid($('#pane'),e,c):tab==='msg'?msgPane($('#pane'),e,c):tab==='part'?partPane($('#pane'),e,c):analysis($('#pane'),e,c);
 }
 function resultGrid(pane,e,c){
   const ms=examStudents(e,c.id),R=DB.results[e.id]||{};
   GRID={e,c};
-  const cell=(sid,i)=>{const r=R[sid],v=r&&r.m?r.m[i]:null,oc=`onclick="cycMark('${e.id}','${sid}',${i})"`;if(v>0&&v<1)return `<td class="q" ${oc} style="color:#d97706;font-weight:700;cursor:pointer" title="${Math.round(v*100)}%">△</td>`;return v===1?`<td class="q o" ${oc} style="cursor:pointer">○</td>`:v===0?`<td class="q x" ${oc} style="cursor:pointer">✕</td>`:`<td class="q" ${oc} style="cursor:pointer">·</td>`};
+  const cell=(sid,i)=>{const r=R[sid],v=r&&r.m?r.m[i]:null,oc=`onclick="cycMark('${e.id}','${sid}',${i})"`;const pf=r&&r.p?(+r.p[i]||0):0;if((v>0&&v<1)||(v===0&&pf>0)){const f=v>0?v:pf;return `<td class="q" ${oc} style="color:#d97706;font-weight:700;cursor:pointer" title="부분점수 ${fmt(f*(+e.items[i].pt||0))}점">△</td>`}return v===1?`<td class="q o" ${oc} style="cursor:pointer">○</td>`:v===0?`<td class="q x" ${oc} style="cursor:pointer">✕</td>`:`<td class="q" ${oc} style="cursor:pointer">·</td>`};
   pane.innerHTML=`<div class="scroll"><table class="g"><thead><tr><th class="qh">문항 / 정답</th>${ms.map(m=>`<th class="${m.hold?'hold':''}"><a href="#/student/${m.id}" style="color:inherit;text-decoration:none">${esc(stu(m.id).name)}</a><div class="sc">${fmt(score(e,m.id))}</div></th>`).join('')}</tr></thead>
   <tbody>${e.items.map((it,i)=>`<tr><td class="qh"><span class="ans">${i+1}번 ${esc(it.ans)}</span><div class="un">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</div></td>${ms.map(m=>cell(m.id,i)).join('')}</tr>`).join('')}
   <tr><td class="qh sub">정답률</td>${ms.map(m=>{const r=R[m.id],mk=r&&r.m?r.m.filter(v=>v!=null):[];return `<td class="sub">${mk.length?Math.round(mk.filter(v=>v===1).length/mk.length*100)+'%':'-'}</td>`}).join('')}</tr>
+  <tr><td class="qh sub">원점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub">${P?fmt(P.raw):'-'}</td>`}).join('')}</tr>
+  <tr><td class="qh sub">부분점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub" style="${P&&P.part>0?'color:#d97706;font-weight:700':''}">${P?fmt(P.part):'-'}</td>`}).join('')}</tr>
+  ${(+e.base||0)>0?`<tr><td class="qh sub">기본점수</td>${ms.map(m=>`<td class="sub">${score(e,m.id)==null?'-':fmt(+e.base)}</td>`).join('')}</tr>`:''}
+  <tr><td class="qh sub"><b>총합</b></td>${ms.map(m=>`<td><b>${fmt(score(e,m.id))}</b></td>`).join('')}</tr>
   <tr><td class="qh sub">오답 번호<br>빠른 입력</td>${ms.map(m=>`<td><input style="width:62px;font-size:12px" placeholder="3,7" onchange="quickWrong('${e.id}','${m.id}',this.value)"></td>`).join('')}</tr>
   <tr><td class="qh sub">점수<br>직접 입력</td>${ms.map(m=>{const r=R[m.id];return `<td><input type="number" step="0.5" style="width:62px;font-size:12px" placeholder="${fmt(score(e,m.id))==='-'?'':fmt(score(e,m.id))}" value="${r&&r.total!=null&&r.total!==''?r.total:''}" onchange="setTotal('${e.id}','${m.id}',this.value)"></td>`}).join('')}</tr></tbody></table></div>
   <p class="note" style="margin-top:10px"><b>입력 방법</b> ① 칸을 누르면 ○ → ✕ → △(부분) → ○ 로 바뀌어요. ② 아래 [오답 번호 빠른 입력]에 <b>3,7,12</b>처럼 쓰면 그 번호만 ✕, 나머지는 ○예요 (전부 맞으면 <b>0</b>, 지우려면 <b>-</b>). ③ [점수 직접 입력]을 쓰면 점수는 입력한 값을 쓰고, ○✕는 단원·유형 분석에만 반영돼요.</p>`;
 }
 function statRows(U){
   return Object.entries(U).sort((a,b)=>a[1].c/a[1].n-b[1].c/b[1].n).map(([u,s])=>{const p=Math.round(s.c/s.n*100);
-    return `<tr><td>${esc(u)}</td><td style="width:50%"><div class="bar ${p<60?'low':''}"><i style="width:${p}%"></i></div></td><td>${p}% <span class="sub">(${s.c}/${s.n})</span></td></tr>`}).join('')||'<tr><td class="sub">결과가 등록되면 표시돼요</td></tr>';
+    return `<tr><td>${esc(u)}</td><td style="width:50%"><div class="bar ${p<60?'low':''}"><i style="width:${p}%"></i></div></td><td>${p}% <span class="sub">(${fmt(s.c)}/${s.n})</span></td></tr>`}).join('')||'<tr><td class="sub">결과가 등록되면 표시돼요</td></tr>';
 }
 function analysis(pane,e,c){
   const ids=examStudents(e,c.id).map(m=>m.id);
   const rows=ids.map(s=>({s,sc:score(e,s)})).sort((a,b)=>(b.sc??-1)-(a.sc??-1));
   const withM=ids.filter(s=>{const r=(DB.results[e.id]||{})[s];return r&&r.m&&r.m.some(v=>v!=null)});
-  const qrate=e.items.map((_,i)=>{let n=0,k=0;withM.forEach(s=>{const v=DB.results[e.id][s].m[i];if(v!=null){n++;k+=(+v||0)}});return {n,k,r:n?k/n:null}});
+  const qrate=e.items.map((_,i)=>{let n=0,k=0;withM.forEach(s=>{const rr=DB.results[e.id][s],v=rr.m[i];if(v!=null){n++;k+=qv(rr,i)}});return {n,k,r:n?k/n:null}});
   const scs=rows.filter(r=>r.sc!=null).map(r=>r.sc);
   pane.innerHTML=`<div class="row"><div class="card"><div class="sub">반 평균</div><div class="sc">${fmt(avg(scs))}점</div></div><div class="card"><div class="sub">입력 인원</div><div class="sc">${scs.length}/${ids.length}</div></div><div class="card"><div class="sub">최고/최저</div><div class="sc">${scs.length?fmt(Math.max(...scs))+'/'+fmt(Math.min(...scs)):'-'}</div></div></div>
   <h3>학생별 평가·조언 (상담 참고)</h3>
-  ${rows.map((r,i)=>{const n=noteOf(e,r.s),w=wrongList(e,r.s);return `<div class="card" style="margin-bottom:8px"><div class="row"><b><a href="#/student/${r.s}" style="color:inherit">${esc(stu(r.s).name)}</a></b><span class="sc">${fmt(r.sc)}점</span><span class="sub">${esc(stu(r.s).grade)} · ${esc(stu(r.s).school)}</span><span class="sp"></span><button class="btn sm" onclick="printReport('${r.s}')">성적표</button></div>
-    <div class="sub">오답 문항: ${w.length?w.join(', ')+'번':'없음'}</div>
+  ${rows.map((r,i)=>{const n=noteOf(e,r.s),w=wrongList(e,r.s);return `<div class="card" style="margin-bottom:8px"><div class="row"><b><a href="#/student/${r.s}" style="color:inherit">${esc(stu(r.s).name)}</a></b><span class="sc">${fmt(r.sc)}점</span>${bdTxt(e,r.s)}<span class="sub">${esc(stu(r.s).grade)} · ${esc(stu(r.s).school)}</span><span class="sp"></span><button class="btn sm" onclick="printReport('${r.s}')">성적표</button></div>
+    <div class="sub">오답 문항: ${w.length?w.join(', ')+'번':'없음'}</div>${whyList(e,r.s)}
     ${n?`<div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div>`:'<div class="sub" style="margin-top:6px">아직 평가가 없어요. Claude에게 분석을 요청해 주세요.</div>'}</div>`}).join('')}
+  ${causeTable(e,ids)}
   <h3>단원별 정답률</h3><table class="t"><tr><th>단원</th><th>정답률</th><th></th></tr>${statRows(unitStats(withM,[e],'unit'))}</table>
   <h3>유형별 정답률</h3><table class="t"><tr><th>유형</th><th>정답률</th><th></th></tr>${statRows(unitStats(withM,[e],'kind'))}</table>
-  <h3>문항별 정답률</h3><table class="t"><tr><th>#</th><th>정답</th><th>단원 · 유형</th><th>정답률</th></tr>${e.items.map((it,i)=>{const q=qrate[i],p=q.r==null?null:Math.round(q.r*100);return `<tr><td>${i+1}</td><td>${esc(it.ans)}</td><td>${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${p==null?'-':`<div class="row"><div class="bar ${p<50?'low':''}" style="width:90px"><i style="width:${p}%"></i></div>${p}% <span class="sub">(${q.k}/${q.n})</span></div>`}</td></tr>`}).join('')}</table>`;
+  <h3>문항별 정답률</h3><table class="t"><tr><th>#</th><th>정답</th><th>단원 · 유형</th><th>정답률</th></tr>${e.items.map((it,i)=>{const q=qrate[i],p=q.r==null?null:Math.round(q.r*100);return `<tr><td>${i+1}</td><td>${esc(it.ans)}</td><td>${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${p==null?'-':`<div class="row"><div class="bar ${p<50?'low':''}" style="width:90px"><i style="width:${p}%"></i></div>${p}% <span class="sub">(${fmt(q.k)}/${q.n})</span></div>`}</td></tr>`}).join('')}</table>`;
 }
 
 /* ===== 학생 ===== */
@@ -1103,8 +1160,9 @@ function studentPage(app,sid){
     <select onchange="inClass('${sid}',this.value)"><option value="">+ 반에 넣기…</option>${rest.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
   <details><summary class="sub">학생 정보 수정 · 퇴원 처리</summary><div class="card" style="margin-top:8px"><div class="row"><input id="sn" value="${esc(s.name)}" style="width:100px"><input id="sg" value="${esc(s.grade)}" placeholder="학년" style="width:90px"><input id="ss" value="${esc(s.school)}" placeholder="학교" style="width:150px"><input id="se" value="${esc(eidOf(s))}" placeholder="학원 ID" style="width:110px"><button class="btn pri" onclick="saveStu('${sid}')">저장</button></div>
    <div class="row" style="margin-top:8px">${s.archived?`<button class="btn" onclick="archiveStu('${sid}')">퇴원 취소(복원)</button>`:`<button class="btn" onclick="archiveStu('${sid}')">퇴원 처리 (모든 반에서 빼고 보관)</button>`}${hasResults(sid)?'':`<button class="btn danger" onclick="delStu('${sid}')">삭제</button>`}</div></div></details>
-  <h3>평가·조언 (상담 참고)</h3>${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점 · 오답 ${wrongList(e,sid).join(', ')||'없음'}</div><div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
+  <h3>평가·조언 (상담 참고)</h3>${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점${bdTxt(e,sid)} · 오답 ${wrongList(e,sid).join(', ')||'없음'}</div><div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div></div>`).join(''):'<p class="note">아직 평가가 없어요. 시험지와 채점 이미지를 Claude에게 주면 만들어 드려요.</p>'}
+  ${causeBlock(sid)}
   <h3>수업 기록</h3>${lessonBlock(sid)}
   <h3>출결</h3>${attCalendar(sid)}${attBlock(sid)}
   <h3>성장 리포트</h3>${growthBlock(sid)}
@@ -1170,7 +1228,10 @@ function importExam(text){
       if(ext){const g=(d.guests||{})[nm]||{};const sid=addStudent({name:nm,grade:g.grade,school:g.school});addToClass(ext,sid);made.push(nm);return {sid,cid:ext}}
       return null};
     const R=old?Object.assign({},DB.results[old.id]):{},N=old?Object.assign({},DB.notes[old.id]):{};
-    Object.entries(d.results||{}).forEach(([nm,v])=>{const f=find(nm);if(!f){miss.push(nm);return}R[f.sid]={m:parseMarks(v,n),total:(v&&v.total!=null)?+v.total:null};e.roster[f.sid]=f.cid});
+    Object.entries(d.results||{}).forEach(([nm,v])=>{const f=find(nm);if(!f){miss.push(nm);return}const rec={m:parseMarks(v,n),total:(v&&v.total!=null)?+v.total:null};
+      if(v&&v.pp)Object.entries(v.pp).forEach(([q,pts])=>{const i=+q-1;if(i>=0&&i<n&&+pts>0){(rec.p=rec.p||{})[i]=Math.min(1,+pts/((+e.items[i].pt)||1))}});
+      if(v&&v.w)Object.entries(v.w).forEach(([q,o])=>{const i=+q-1;if(i>=0&&i<n)(rec.w=rec.w||{})[i]=(typeof o==='string')?{c:'',t:o}:{c:o.c||'',t:o.t||''}});
+      R[f.sid]=rec;e.roster[f.sid]=f.cid});
     Object.entries(d.notes||{}).forEach(([nm,v])=>{const f=find(nm);if(!f){if(!miss.includes(nm))miss.push(nm);return}N[f.sid]=Object.assign({},N[f.sid],{eval:v.eval||'',advice:v.advice||''});e.roster[f.sid]=e.roster[f.sid]||f.cid});
     if(old){DB.exams[DB.exams.indexOf(old)]=e}else DB.exams.push(e);
     DB.results[e.id]=R;DB.notes[e.id]=N;save();
