@@ -242,7 +242,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261112165146';
+const BUILD_ID='20261112225151';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -965,6 +965,27 @@ function partPane(pane,e,c){
     ${bad.length?`<div class="scroll" style="max-height:none"><table class="t" style="margin-top:6px"><tr><th>번호</th><th class="hide-s">단원·유형</th><th>배점</th><th>부분점수</th><th>원인</th><th>이유</th></tr>${bad.map(({it,i,v})=>{const w=(r.w||{})[i]||{},pf=+((r.p||{})[i])||(+v>0&&+v<1?+v:0);
       return `<tr><td>${i+1}번</td><td class="hide-s sub">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${fmt(+it.pt||0)}</td><td><input type="number" step="0.5" min="0" max="${+it.pt||0}" style="width:58px" value="${pf>0?fmt(pf*(+it.pt||0)):''}" onchange="setPart('${e.id}','${sid}',${i},this.value)"></td><td><input list="cl" style="width:130px" value="${esc(w.c||'')}" onchange="setWhy('${e.id}','${sid}',${i},'c',this.value)"></td><td><input style="width:100%;min-width:200px" value="${esc(w.t||'')}" onchange="setWhy('${e.id}','${sid}',${i},'t',this.value)"></td></tr>`}).join('')}</table></div>`:'<div class="sub" style="margin-top:6px">틀린 문항이 없어요.</div>'}</div>`}).join('')||'<p class="note">결과가 입력된 학생이 없어요.</p>'}`;
 }
+
+/* ===== 시험·문항 난이도 기록 ===== */
+const D5=['-','하','중하','중','중상','상'];
+function diffAvgNum(e){const v=e.items.map(i=>+i.diff||0).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null}
+function diffLabel(x){return x==null?'-':D5[Math.round(x)]+' ('+(Math.round(x*10)/10)+')'}
+function setDiff(eid,i,v){const e=DB.exams.find(x=>x.id===eid);e.items[i].diff=+v||0;save();render()}
+function setDnote(eid,v){const e=DB.exams.find(x=>x.id===eid);e.dnote=(v||'').trim();save()}
+function diffBlock(e,ids){
+  const R=DB.results[e.id]||{};
+  const rate=e.items.map((_,i)=>{let n=0,k=0;ids.forEach(sid=>{const q=qv(R[sid],i);if(q!=null){n++;k+=q}});return n?k/n:null});
+  const avgD=diffAvgNum(e),rr=rate.filter(x=>x!=null),avgR=rr.length?rr.reduce((a,b)=>a+b,0)/rr.length:null;
+  const feel=r=>r==null?'-':r>=.9?'쉬움':r>=.7?'보통':r>=.5?'어려움':'매우 어려움';
+  const cmp=(d,r)=>{if(!d||r==null)return '';if(d<=2&&r<.75)return '<span style="color:#dc2626">예상보다 어려웠어요</span>';if(d>=4&&r>=.9)return '<span style="color:#16a34a">예상보다 쉬웠어요</span>';return '<span class="sub">예상대로</span>'};
+  const byD={};e.items.forEach((it,i)=>{const d=+it.diff||0;if(d>0&&rate[i]!=null)(byD[d]=byD[d]||[]).push(rate[i])});
+  return `<h3>난이도 분석 <span class="sub">출제 난이도는 1(하)~5(상)로 기록해요</span></h3>
+  <div class="row"><div class="card"><div class="sub">시험 평균 난이도</div><div class="sc">${diffLabel(avgD)}</div></div><div class="card"><div class="sub">평균 정답률</div><div class="sc">${avgR==null?'-':Math.round(avgR*100)+'%'}</div></div>
+  <div class="card"><div class="sub">난이도별 정답률</div><div style="font-size:13px">${Object.keys(byD).sort().map(d=>D5[d]+' '+Math.round(byD[d].reduce((a,b)=>a+b,0)/byD[d].length*100)+'%').join(' · ')||'-'}</div></div></div>
+  <div class="scroll" style="max-height:none"><table class="t" style="margin-top:6px"><tr><th>#</th><th class="hide-s">단원 · 유형</th><th>출제 난이도</th><th>정답률</th><th>체감</th><th class="hide-s">예상 대비</th></tr>
+  ${e.items.map((it,i)=>{const d=+it.diff||0,r=rate[i];return `<tr><td>${i+1}</td><td class="hide-s sub">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td><select onchange="setDiff('${e.id}',${i},this.value)">${D5.map((t,k)=>`<option value="${k}" ${d===k?'selected':''}>${k?k+' '+t:'미정'}</option>`).join('')}</select></td><td>${r==null?'-':`<div class="row" style="gap:6px;flex-wrap:nowrap"><div class="bar ${r<.5?'low':''}" style="width:70px;min-width:70px"><i style="width:${Math.round(r*100)}%"></i></div>${Math.round(r*100)}%</div>`}</td><td>${feel(r)}</td><td class="hide-s">${cmp(d,r)}</td></tr>`}).join('')}</table></div>
+  <textarea rows="3" style="width:100%;margin-top:6px" placeholder="이 시험의 난이도 총평 (출처·변별력·아이들이 어려워한 점 등)" onchange="setDnote('${e.id}',this.value)">${esc(e.dnote||'')}</textarea>`;
+}
 /* ===== 명단 편집 도우미 (반·학생은 언제든 바뀔 수 있어요) ===== */
 const ko=(a,b)=>a.name.localeCompare(b.name,'ko');
 const sortMembers=c=>c.members.sort((a,b)=>stu(a.id).name.localeCompare(stu(b.id).name,'ko'));
@@ -1018,9 +1039,9 @@ function classPage(app,cid,tab,q){
   }else{
     const ex=examsOf(cid);
     body=`<div class="row" style="margin-bottom:10px"><button class="btn pri" onclick="location.hash='#/exam/new/${cid}'">+ 시험 직접 등록</button><span class="sub">보통은 시험지·채점 이미지를 Claude에게 주면 등록돼요.</span></div>`+
-    (ex.length?`<table class="t"><tr><th>시험</th><th class="hide-s">날짜</th><th>평균</th><th>입력</th><th></th></tr>`+ex.map(e=>{
+    (ex.length?`<table class="t"><tr><th>시험</th><th class="hide-s">날짜</th><th>평균</th><th class="hide-s">난이도</th><th>입력</th><th></th></tr>`+ex.map(e=>{
       const ids=examStudents(e,cid).map(m=>m.id);const done=ids.filter(s=>score(e,s)!=null).length;
-      return `<tr><td><b>${esc(e.name)}</b> <span class="badge">${esc(e.type)}</span></td><td class="hide-s">${esc(e.date)}</td><td>${fmt(avg(ids.map(s=>score(e,s))))}</td><td>${done}/${ids.length}</td>
+      return `<tr><td><b>${esc(e.name)}</b> <span class="badge">${esc(e.type)}</span></td><td class="hide-s">${esc(e.date)}</td><td>${fmt(avg(ids.map(s=>score(e,s))))}</td><td class="hide-s">${diffLabel(diffAvgNum(e))}</td><td>${done}/${ids.length}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sm pri" onclick="location.hash='#/exam/${e.id}?c=${cid}&tab=analysis'">분석·상담</button> <button class="btn sm" onclick="location.hash='#/exam/${e.id}?c=${cid}&tab=grade'">결과표</button> <button class="btn sm" onclick="location.hash='#/exam/${e.id}/edit'">수정</button> <button class="btn sm danger" onclick="delExam('${e.id}')">삭제</button></td></tr>`}).join('')+`</table>`
       :`<p class="note">아직 시험이 없어요. 시험지 PDF와 채점 이미지를 Claude에게 주면 이 반에 등록해 드려요.</p>`);
   }
@@ -1093,11 +1114,12 @@ function examEditor(app,id,cid){
   <h3>문항 (정답 · 단원 · 유형 · 배점)</h3>
   <div class="row" style="margin-bottom:8px"><button class="btn sm" onclick="evenPt()">배점 균등(합 100)</button><span class="sub">합계 <b id="ptsum">${totalPt(e)}</b>점</span></div>
   <datalist id="ul">${allUnits().map(u=>`<option value="${esc(u)}">`).join('')}</datalist>
-  <table class="t"><tr><th>#</th><th>정답</th><th>단원</th><th>유형</th><th>배점</th></tr>${e.items.map((it,i)=>`<tr><td>${i+1}</td>
+  <table class="t"><tr><th>#</th><th>정답</th><th>단원</th><th>유형</th><th>배점</th><th>난이도</th></tr>${e.items.map((it,i)=>`<tr><td>${i+1}</td>
    <td><input data-f="ans" data-i="${i}" value="${esc(it.ans)}" style="width:100px"></td>
    <td><input data-f="unit" data-i="${i}" list="ul" value="${esc(it.unit)}" style="width:100%;min-width:130px"></td>
    <td><input data-f="kind" data-i="${i}" value="${esc(it.kind||'')}" placeholder="객관식/계산…" style="width:110px"></td>
-   <td><input data-f="pt" data-i="${i}" type="number" step="0.5" value="${it.pt}" style="width:64px"></td></tr>`).join('')}</table>
+   <td><input data-f="pt" data-i="${i}" type="number" step="0.5" value="${it.pt}" style="width:64px"></td>
+   <td><select data-f="diff" data-i="${i}" style="width:76px">${D5.map((t,k)=>`<option value="${k}" ${(+it.diff||0)===k?'selected':''}>${k?k+' '+t:'-'}</option>`).join('')}</select></td></tr>`).join('')}</table>
   <h3>한꺼번에 붙여넣기 (선택)</h3>
   <textarea id="bulk" rows="4" placeholder="한 줄에 한 문항: 정답 | 단원 | 유형  (예: 6 | 제곱근과 실수 | 계산)"></textarea>
   <div class="row" style="margin-top:6px"><button class="btn sm" onclick="applyBulk()">문항에 적용</button></div>
@@ -1112,8 +1134,8 @@ function applyBulk(){syncMeta();const e=DRAFT;$('#bulk').value.split('\n').filte
 function saveExam(){syncMeta();const e=DRAFT;
   if(!e.name.trim()) return alert('시험 이름을 입력해 주세요.');
   if(!e.classIds.length) return alert('적용할 반을 하나 이상 선택해 주세요.');
-  const out={id:e._existing||uid(),name:e.name.trim(),type:e.type,date:e.date,classIds:e.classIds,items:e.items.map(i=>({ans:i.ans,unit:i.unit,kind:i.kind||'',pt:+i.pt||0}))};
-  const prev=DB.exams.find(x=>x.id===out.id);if(prev&&prev.roster)out.roster=prev.roster;if(prev&&prev.base)out.base=prev.base;
+  const out={id:e._existing||uid(),name:e.name.trim(),type:e.type,date:e.date,classIds:e.classIds,items:e.items.map(i=>({ans:i.ans,unit:i.unit,kind:i.kind||'',pt:+i.pt||0,diff:+i.diff||0}))};
+  const prev=DB.exams.find(x=>x.id===out.id);if(prev&&prev.roster)out.roster=prev.roster;if(prev&&prev.base)out.base=prev.base;if(prev&&prev.dnote)out.dnote=prev.dnote;
   const tot=totalPt(out);if(Math.abs(tot-100)>0.01&&!confirm(`배점 합계가 ${fmt(tot)}점이에요. 테스트는 100점 만점이 기본이에요.\n그래도 이대로 저장할까요?`))return;
   const k=DB.exams.findIndex(x=>x.id===out.id);if(k>=0)DB.exams[k]=out;else DB.exams.push(out);
   save();DRAFT=null;location.hash=`#/class/${e.classIds[0]}`}
@@ -1155,12 +1177,13 @@ function analysis(pane,e,c){
   const withM=ids.filter(s=>{const r=(DB.results[e.id]||{})[s];return r&&r.m&&r.m.some(v=>v!=null)});
   const qrate=e.items.map((_,i)=>{let n=0,k=0;withM.forEach(s=>{const rr=DB.results[e.id][s],v=rr.m[i];if(v!=null){n++;k+=qv(rr,i)}});return {n,k,r:n?k/n:null}});
   const scs=rows.filter(r=>r.sc!=null).map(r=>r.sc);
-  pane.innerHTML=`<div class="row"><div class="card"><div class="sub">반 평균</div><div class="sc">${fmt(avg(scs))}점</div></div><div class="card"><div class="sub">입력 인원</div><div class="sc">${scs.length}/${ids.length}</div></div><div class="card"><div class="sub">최고/최저</div><div class="sc">${scs.length?fmt(Math.max(...scs))+'/'+fmt(Math.min(...scs)):'-'}</div></div></div>
+  pane.innerHTML=`<div class="row"><div class="card"><div class="sub">반 평균</div><div class="sc">${fmt(avg(scs))}점</div></div><div class="card"><div class="sub">입력 인원</div><div class="sc">${scs.length}/${ids.length}</div></div><div class="card"><div class="sub">최고/최저</div><div class="sc">${scs.length?fmt(Math.max(...scs))+'/'+fmt(Math.min(...scs)):'-'}</div></div><div class="card"><div class="sub">시험 난이도</div><div class="sc">${diffLabel(diffAvgNum(e))}</div></div></div>
   <h3>학생별 평가·조언 (상담 참고)</h3>
   ${rows.map((r,i)=>{const n=noteOf(e,r.s),w=wrongList(e,r.s);return `<div class="card" style="margin-bottom:8px"><div class="row"><b><a href="#/student/${r.s}" style="color:inherit">${esc(stu(r.s).name)}</a></b><span class="sc">${fmt(r.sc)}점</span>${bdTxt(e,r.s)}<span class="sub">${esc(stu(r.s).grade)} · ${esc(stu(r.s).school)}</span><span class="sp"></span><button class="btn sm" onclick="printReport('${r.s}')">성적표</button></div>
     <div class="sub">오답 문항: ${w.length?w.join(', ')+'번':'없음'}</div>${whyList(e,r.s)}
     ${n?`<div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div>`:'<div class="sub" style="margin-top:6px">아직 평가가 없어요. Claude에게 분석을 요청해 주세요.</div>'}</div>`}).join('')}
+  ${diffBlock(e,withM)}
   ${causeTable(e,ids)}
   <h3>단원별 정답률</h3><table class="t"><tr><th>단원</th><th>정답률</th><th></th></tr>${statRows(unitStats(withM,[e],'unit'))}</table>
   <h3>유형별 정답률</h3><table class="t"><tr><th>유형</th><th>정답률</th><th></th></tr>${statRows(unitStats(withM,[e],'kind'))}</table>
@@ -1240,7 +1263,7 @@ function importExam(text){
     const classIds=[...new Set((d.classIds||d.classes||[d.class]).filter(Boolean).map(resolveClass).filter(Boolean).map(c=>c.id))]; if(!classIds.length) throw new Error('파일 안의 반 이름(class 또는 classIds)을 명단에서 찾지 못했어요. 반 이름이나 별칭을 확인해 주세요.');
     const n=d.items.length, def=Math.round((100-(+d.base||0))/n*100)/100, date=d.date||today();
     const old=DB.exams.find(x=>x.name===d.name&&x.date===date);
-    const e={id:old?old.id:uid(),name:d.name,type:d.type||'학력평가',date,classIds,roster:{},base:+d.base||0,items:d.items.map(i=>({ans:i.ans==null?'':String(i.ans),unit:i.unit||'',kind:i.kind||'',pt:i.pt==null?def:+i.pt}))};
+    const e={id:old?old.id:uid(),name:d.name,type:d.type||'학력평가',date,classIds,roster:{},base:+d.base||0,items:d.items.map(i=>({ans:i.ans==null?'':String(i.ans),unit:i.unit||'',kind:i.kind||'',pt:i.pt==null?def:+i.pt,diff:+i.diff||0})),dnote:d.dnote||(old&&old.dnote)||''};
     const ext=classIds.find(c=>cls(c).role==='외부'),made=[],miss=[];
     const find=nm=>{
       for(const cid of classIds){const ms=cls(cid).members;const m=ms.find(m=>m.id===nm||stu(m.id).eid===nm)||ms.find(m=>stu(m.id).name===nm);if(m)return {sid:m.id,cid}}
