@@ -242,7 +242,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261112231013';
+const BUILD_ID='20261112231927';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -857,11 +857,11 @@ function naesinStudentBlock(sid){
 }
 /* ===== 성적 문자 / 결과표 직접 편집 (내신) ===== */
 let EM=[];
-const MOPT_KEY='banmgmt_msgopt',MDEF={avg:true,rank:false,prev:true,wrong:true,unit:true,close:true};
+const MOPT_KEY='banmgmt_msgopt',MDEF={avg:true,rank:false,prev:true,wrong:true,diff:true,unit:true,close:true};
 let MOPT=(()=>{try{return Object.assign({},MDEF,JSON.parse(localStorage.getItem(MOPT_KEY)||'{}'))}catch(e){return Object.assign({},MDEF)}})();
 function saveMopt(){try{localStorage.setItem(MOPT_KEY,JSON.stringify(MOPT))}catch(e){}}
 function setMopt(k,v){MOPT[k]=v;saveMopt();render()}
-function msgPreset(p){MOPT=p==='simple'?{avg:true,rank:false,prev:false,wrong:true,unit:false,close:false}:Object.assign({},MDEF);saveMopt();render()}
+function msgPreset(p){MOPT=p==='simple'?{avg:true,rank:false,prev:false,wrong:true,diff:false,unit:false,close:false}:Object.assign({},MDEF);saveMopt();render()}
 const bytesOf=t=>{let n=0;for(const ch of t)n+=ch.charCodeAt(0)>127?2:1;return n};
 function prevExamOf(e,sid){
   const nz=isNaesinCls(examClass(e,sid))?'내신':undefined;
@@ -882,7 +882,8 @@ function scoreMsg(e,c,sid,o){
   const pv=o.prev?prevExamOf(e,sid):null;
   if(pv){const d=sc/max*100-score(pv,sid)/(totalPt(pv)||100)*100;L.push(`• 지난 ${e.type}(${mdd(pv.date)}) 대비: ${d>0.5?'▲ '+fmt(d)+'점 상승':d<-0.5?'▼ '+fmt(-d)+'점 하락':'비슷한 수준'}`)}
   const r=(DB.results[e.id]||{})[sid],hasM=r&&r.m&&r.m.some(v=>v!=null);
-  if(o.wrong&&hasM){const wl=wrongList(e,sid);L.push(wl.length?`• 오답: ${wl.join(', ')}번 (${wl.length}문항)`:'• 오답 없음, 모든 문항 정답입니다')}
+  if(o.wrong&&hasM){const wl=wrongList(e,sid);L.push(wl.length?`• 오답: ${o.diff?wrongDetail(e,sid,false):wl.join(', ')+'번'} (${wl.length}문항)`:'• 오답 없음, 모든 문항 정답입니다')}
+  if(o.diff){const dl=diffLine(e,sid,false);if(dl)L.push('• '+dl)}
   if(o.unit){const wk=weakInExam(e,sid);if(wk.length)L.push(`• 보완할 단원: ${wk.join(', ')}`)}
   const raw=(DB.notes[e.id]||{})[sid],own=raw&&raw.msg,pc=sc/max*100;
   if(own)L.push('',own);
@@ -896,7 +897,7 @@ function msgPane(pane,e,c){
   EM=[];const rows=[],miss=[];
   ids.forEach(sid=>{const m=scoreMsg(e,c,sid,MOPT);if(m==null){miss.push(stu(sid).name);return}EM.push(m);rows.push([sid,EM.length-1])});
   const chk=(k,t)=>`<label><input type="checkbox" ${MOPT[k]?'checked':''} onchange="setMopt('${k}',this.checked)"> ${t}</label>`;
-  pane.innerHTML=`<div class="card"><b>문자에 넣을 내용</b><div class="row" style="margin-top:6px">${chk('avg','반 평균')}${chk('rank','등수')}${chk('prev','지난 시험 대비')}${chk('wrong','오답 번호')}${chk('unit','보완 단원')}${chk('close','마무리 한마디(자동)')}</div>
+  pane.innerHTML=`<div class="card"><b>문자에 넣을 내용</b><div class="row" style="margin-top:6px">${chk('avg','반 평균')}${chk('rank','등수')}${chk('prev','지난 시험 대비')}${chk('wrong','오답 번호')}${chk('diff','난이도별')}${chk('unit','보완 단원')}${chk('close','마무리 한마디(자동)')}</div>
   <div class="row" style="margin-top:8px"><button class="btn sm" onclick="msgPreset('simple')">간단형</button><button class="btn sm" onclick="msgPreset('full')">상세형</button><span class="sp"></span><button class="btn sm pri" onclick="copyAllMsgs()">전체 복사 (엑셀·문자 시트 붙여넣기용)</button></div>
   <div class="sub" style="margin-top:6px">학생마다 아래 칸에 한마디를 적으면 자동 문구 대신 그 내용이 들어가요. 90byte를 넘으면 장문(LMS)으로 나가요.</div></div>
   ${miss.length?`<p class="note">점수가 없는 학생(건너뜀): ${esc(miss.join(', '))}</p>`:''}
@@ -963,7 +964,7 @@ function partPane(pane,e,c){
     const bad=e.items.map((it,i)=>({it,i,v:r.m?r.m[i]:null})).filter(x=>x.v==null||+x.v<1||((r.p||{})[x.i]>0));
     return `<div class="card" style="margin-top:10px"><div class="row"><b><a href="#/student/${sid}" style="color:inherit">${esc(stu(sid).name)}</a></b>${chip('원점수',fmt(P.raw))}${chip('부분점수',fmt(P.part),P.part>0?'#d97706':'')}${P.base>0?chip('기본',fmt(P.base)):''}${chip('총합',fmt(tot)+'점','#1968b3')}${P.fixed?'<span class="sub">(직접 입력한 점수)</span>':''}</div>
     ${bad.length?`<div class="scroll" style="max-height:none"><table class="t" style="margin-top:6px"><tr><th>번호</th><th class="hide-s">단원·유형</th><th>배점</th><th>부분점수</th><th>원인</th><th>이유</th></tr>${bad.map(({it,i,v})=>{const w=(r.w||{})[i]||{},pf=+((r.p||{})[i])||(+v>0&&+v<1?+v:0);
-      return `<tr><td>${i+1}번</td><td class="hide-s sub">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${fmt(+it.pt||0)}</td><td><input type="number" step="0.5" min="0" max="${+it.pt||0}" style="width:58px" value="${pf>0?fmt(pf*(+it.pt||0)):''}" onchange="setPart('${e.id}','${sid}',${i},this.value)"></td><td><input list="cl" style="width:130px" value="${esc(w.c||'')}" onchange="setWhy('${e.id}','${sid}',${i},'c',this.value)"></td><td><input style="width:100%;min-width:200px" value="${esc(w.t||'')}" onchange="setWhy('${e.id}','${sid}',${i},'t',this.value)"></td></tr>`}).join('')}</table></div>`:'<div class="sub" style="margin-top:6px">틀린 문항이 없어요.</div>'}</div>`}).join('')||'<p class="note">결과가 입력된 학생이 없어요.</p>'}`;
+      return `<tr><td style="white-space:nowrap">${i+1}번 ${dTag(it)}</td><td class="hide-s sub">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${fmt(+it.pt||0)}</td><td><input type="number" step="0.5" min="0" max="${+it.pt||0}" style="width:58px" value="${pf>0?fmt(pf*(+it.pt||0)):''}" onchange="setPart('${e.id}','${sid}',${i},this.value)"></td><td><input list="cl" style="width:130px" value="${esc(w.c||'')}" onchange="setWhy('${e.id}','${sid}',${i},'c',this.value)"></td><td><input style="width:100%;min-width:200px" value="${esc(w.t||'')}" onchange="setWhy('${e.id}','${sid}',${i},'t',this.value)"></td></tr>`}).join('')}</table></div>`:'<div class="sub" style="margin-top:6px">틀린 문항이 없어요.</div>'}</div>`}).join('')||'<p class="note">결과가 입력된 학생이 없어요.</p>'}`;
 }
 
 /* ===== 시험·문항 난이도 기록 ===== */
@@ -1068,6 +1069,44 @@ function scoresPage(app,c){
   </div>`:'<p class="note">아직 점수가 입력된 시험·일일테스트가 없어요.</p>'}`;
 }
 function printScores(){const w=document.getElementById('swrap');if(!w)return;$('#printArea').innerHTML=`<div class="rep" style="padding:16px"><h1>반 성적표</h1><div>${today()} 발행</div>${w.innerHTML}</div>`;setTimeout(()=>window.print(),50)}
+
+/* ===== 난이도(하·중·상) 표시와 난이도별 정답·오답 ===== */
+const dGrp=d=>d<=0?'':d<=2?'하':d===3?'중':'상';
+const DCOL={하:'#16a34a',중:'#d97706',상:'#dc2626'};
+function dTag(it){const d=+(it&&it.diff)||0;if(!d)return '';const g=dGrp(d);return `<span style="display:inline-block;font-size:10px;line-height:1;padding:2px 5px;border-radius:99px;background:${DCOL[g]};color:#fff;vertical-align:middle" title="난이도 ${D5[d]}">${g}</span>`}
+function dLbl(it){const d=+(it&&it.diff)||0;return d?dGrp(d):''}
+function wrongDetail(e,sid,html){ // "3번(상), 7번(중·부분)"
+  const r=(DB.results[e.id]||{})[sid];if(!r||!r.m)return '';
+  return r.m.map((v,i)=>{if(v==null||+v>=1)return null;const it=e.items[i]||{},part=(+v>0)||(+((r.p||{})[i])>0),g=dLbl(it);
+    const tag=(g||part)?`(${html&&g?`<b style="color:${DCOL[g]}">${g}</b>`:g}${g&&part?'·':''}${part?'부분':''})`:'';return `${i+1}번${tag}`}).filter(Boolean).join(', ');
+}
+function diffStat(e,sid){
+  const r=(DB.results[e.id]||{})[sid];if(!r||!r.m)return null;
+  const G={하:{n:0,ok:0,bad:0},중:{n:0,ok:0,bad:0},상:{n:0,ok:0,bad:0}};let any=false;
+  e.items.forEach((it,i)=>{const d=+it.diff||0,v=r.m[i];if(!d||v==null)return;any=true;const g=G[dGrp(d)];g.n++;if(+v>=1)g.ok++;else g.bad++});
+  return any?G:null;
+}
+function diffLine(e,sid,html){
+  const G=diffStat(e,sid);if(!G)return '';
+  const parts=Object.keys(G).filter(g=>G[g].n).map(g=>`${html?`<b style="color:${DCOL[g]}">${g}</b>`:g} ${G[g].n}문항 중 ${G[g].ok}개 정답${G[g].bad?` · ${G[g].bad}개 틀림`:''}`);
+  return parts.length?(html?'<div class="sub" style="margin-top:2px">난이도별 · ':'난이도별 ')+parts.join(html?'　|　':' / ')+(html?'</div>':''):'';
+}
+function diffStuBlock(sid){
+  const T={하:{n:0,ok:0},중:{n:0,ok:0},상:{n:0,ok:0}},rows=[];
+  DB.exams.forEach(e=>{const G=diffStat(e,sid);if(!G)return;Object.keys(G).forEach(g=>{T[g].n+=G[g].n;T[g].ok+=G[g].ok});rows.push({e,G})});
+  if(!rows.length)return '';
+  const rate=g=>T[g].n?T[g].ok/T[g].n:null;
+  const cm=[];
+  if(T['하'].n>=3&&rate('하')<.85)cm.push('쉬운 문항에서 실수가 있어요. 풀이 검산과 꼼꼼함을 점검해 주세요.');
+  if(T['상'].n>=3&&rate('상')<.3)cm.push('상 난이도 문항은 아직 어려워해요. 상위 유형을 단계별로 보강하세요.');
+  if(T['상'].n>=3&&rate('상')>=.7)cm.push('상 난이도 문항도 잘 해결해요.');
+  if(T['중'].n>=3&&rate('중')<.6)cm.push('중간 난이도(기본 응용) 정답률이 낮아요. 개념 정리부터 확인하세요.');
+  rows.sort((a,b)=>b.e.date.localeCompare(a.e.date));
+  return `<h3>난이도별 정답·오답 (누적)</h3>
+  <table class="t"><tr><th>난이도</th><th>문항</th><th>정답</th><th>틀림</th><th>정답률</th></tr>${['하','중','상'].filter(g=>T[g].n).map(g=>`<tr><td><b style="color:${DCOL[g]}">${g}</b></td><td>${T[g].n}</td><td>${T[g].ok}</td><td>${T[g].n-T[g].ok}</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><div class="bar ${rate(g)<.5?'low':''}" style="width:80px;min-width:80px"><i style="width:${Math.round(rate(g)*100)}%"></i></div>${Math.round(rate(g)*100)}%</div></td></tr>`).join('')}</table>
+  ${cm.length?`<div class="card" style="margin-top:6px">${cm.map(x=>'• '+esc(x)).join('<br>')}</div>`:''}
+  <div class="scroll" style="max-height:none"><table class="t" style="margin-top:6px"><tr><th>날짜</th><th>시험</th><th>난이도별 (정답/문항)</th></tr>${rows.slice(0,30).map(({e,G})=>`<tr><td>${esc(e.date.slice(5))}</td><td>${esc(e.name.slice(0,22))}</td><td style="white-space:nowrap">${['하','중','상'].filter(g=>G[g].n).map(g=>`<b style="color:${DCOL[g]}">${g}</b> ${G[g].ok}/${G[g].n}`).join('　')}</td></tr>`).join('')}</table></div>`;
+}
 /* ===== 명단 편집 도우미 (반·학생은 언제든 바뀔 수 있어요) ===== */
 const ko=(a,b)=>a.name.localeCompare(b.name,'ko');
 const sortMembers=c=>c.members.sort((a,b)=>stu(a.id).name.localeCompare(stu(b.id).name,'ko'));
@@ -1242,7 +1281,7 @@ function resultGrid(pane,e,c){
   GRID={e,c};
   const cell=(sid,i)=>{const r=R[sid],v=r&&r.m?r.m[i]:null,oc=`onclick="cycMark('${e.id}','${sid}',${i})"`;const pf=r&&r.p?(+r.p[i]||0):0;if((v>0&&v<1)||(v===0&&pf>0)){const f=v>0?v:pf;return `<td class="q" ${oc} style="color:#d97706;font-weight:700;cursor:pointer" title="부분점수 ${fmt(f*(+e.items[i].pt||0))}점">△</td>`}return v===1?`<td class="q o" ${oc} style="cursor:pointer">○</td>`:v===0?`<td class="q x" ${oc} style="cursor:pointer">✕</td>`:`<td class="q" ${oc} style="cursor:pointer">·</td>`};
   pane.innerHTML=`<div class="row" style="margin-bottom:6px"><button class="btn sm" onclick="toggleGridOpen()">${GRID_OPEN?'▾ 문항별 ○✕ 접기':'▸ 문항별 ○✕ 펼치기'}</button><span class="sub">${GRID_OPEN?'':'접어 두면 점수·등수·평균 줄만 보여요 · '}누르면 다시 열려요</span></div><div class="scroll"><table class="g"><thead><tr><th class="qh">문항 / 정답<div class="sub" style="font-size:11px;font-weight:400">반 평균 ${fmt(avg(ms.map(x=>score(e,x.id))))}점</div></th>${ms.map(m=>`<th class="${m.hold?'hold':''}"><a href="#/student/${m.id}" style="color:inherit;text-decoration:none">${esc(stu(m.id).name)}</a><div class="sc">${fmt(score(e,m.id))}</div><div class="sub" style="font-size:11px;white-space:nowrap">${gridSub(e,ms,m.id)}</div></th>`).join('')}</tr></thead>
-  <tbody>${GRID_OPEN?e.items.map((it,i)=>`<tr><td class="qh"><span class="ans">${i+1}번 ${esc(it.ans)}</span><div class="un">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</div></td>${ms.map(m=>cell(m.id,i)).join('')}</tr>`).join(''):''}
+  <tbody>${GRID_OPEN?e.items.map((it,i)=>`<tr><td class="qh"><span class="ans">${i+1}번 ${dTag(it)} ${esc(it.ans)}</span><div class="un">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</div></td>${ms.map(m=>cell(m.id,i)).join('')}</tr>`).join(''):''}
   <tr><td class="qh sub">정답률</td>${ms.map(m=>{const r=R[m.id],mk=r&&r.m?r.m.filter(v=>v!=null):[];return `<td class="sub">${mk.length?Math.round(mk.filter(v=>v===1).length/mk.length*100)+'%':'-'}</td>`}).join('')}</tr>
   <tr><td class="qh sub">원점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub">${P?fmt(P.raw):'-'}</td>`}).join('')}</tr>
   <tr><td class="qh sub">부분점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub" style="${P&&P.part>0?'color:#d97706;font-weight:700':''}">${P?fmt(P.part):'-'}</td>`}).join('')}</tr>
@@ -1266,14 +1305,14 @@ function analysis(pane,e,c){
   pane.innerHTML=`<div class="row"><div class="card"><div class="sub">반 평균</div><div class="sc">${fmt(avg(scs))}점</div></div><div class="card"><div class="sub">입력 인원</div><div class="sc">${scs.length}/${ids.length}</div></div><div class="card"><div class="sub">최고/최저</div><div class="sc">${scs.length?fmt(Math.max(...scs))+'/'+fmt(Math.min(...scs)):'-'}</div></div><div class="card"><div class="sub">시험 난이도</div><div class="sc">${diffLabel(diffAvgNum(e))}</div></div></div>
   <h3>학생별 평가·조언 (상담 참고)</h3>
   ${rows.map((r,i)=>{const n=noteOf(e,r.s),w=wrongList(e,r.s);return `<div class="card" style="margin-bottom:8px"><div class="row"><b><a href="#/student/${r.s}" style="color:inherit">${esc(stu(r.s).name)}</a></b><span class="sc">${fmt(r.sc)}점</span>${bdTxt(e,r.s)}${r.sc!=null&&scs.length>1?`<span class="badge d">${1+scs.filter(x=>x>r.sc).length}등 / ${scs.length}명</span>`:''}<span class="sub">${esc(stu(r.s).grade)} · ${esc(stu(r.s).school)}</span><span class="sp"></span><button class="btn sm" onclick="printReport('${r.s}')">성적표</button></div>
-    <div class="sub">오답 문항: ${w.length?w.join(', ')+'번':'없음'}</div>${whyList(e,r.s)}
+    <div class="sub">오답 문항: ${w.length?wrongDetail(e,r.s,true):'없음'}</div>${diffLine(e,r.s,true)}${whyList(e,r.s)}
     ${n?`<div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div>`:'<div class="sub" style="margin-top:6px">아직 평가가 없어요. Claude에게 분석을 요청해 주세요.</div>'}</div>`}).join('')}
   ${diffBlock(e,withM)}
   ${causeTable(e,ids)}
   <h3>단원별 정답률</h3><table class="t"><tr><th>단원</th><th>정답률</th><th></th></tr>${statRows(unitStats(withM,[e],'unit'))}</table>
   <h3>유형별 정답률</h3><table class="t"><tr><th>유형</th><th>정답률</th><th></th></tr>${statRows(unitStats(withM,[e],'kind'))}</table>
-  <h3>문항별 정답률</h3><table class="t"><tr><th>#</th><th>정답</th><th>단원 · 유형</th><th>정답률</th></tr>${e.items.map((it,i)=>{const q=qrate[i],p=q.r==null?null:Math.round(q.r*100);return `<tr><td>${i+1}</td><td>${esc(it.ans)}</td><td>${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${p==null?'-':`<div class="row"><div class="bar ${p<50?'low':''}" style="width:90px"><i style="width:${p}%"></i></div>${p}% <span class="sub">(${fmt(q.k)}/${q.n})</span></div>`}</td></tr>`}).join('')}</table>`;
+  <h3>문항별 정답률</h3><table class="t"><tr><th>#</th><th>정답</th><th>단원 · 유형</th><th>정답률</th></tr>${e.items.map((it,i)=>{const q=qrate[i],p=q.r==null?null:Math.round(q.r*100);return `<tr><td style="white-space:nowrap">${i+1} ${dTag(it)}</td><td>${esc(it.ans)}</td><td>${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</td><td>${p==null?'-':`<div class="row"><div class="bar ${p<50?'low':''}" style="width:90px"><i style="width:${p}%"></i></div>${p}% <span class="sub">(${fmt(q.k)}/${q.n})</span></div>`}</td></tr>`}).join('')}</table>`;
 }
 
 /* ===== 학생 ===== */
@@ -1288,8 +1327,9 @@ function studentPage(app,sid){
     <select onchange="inClass('${sid}',this.value)"><option value="">+ 반에 넣기…</option>${rest.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
   <details><summary class="sub">학생 정보 수정 · 퇴원 처리</summary><div class="card" style="margin-top:8px"><div class="row"><input id="sn" value="${esc(s.name)}" style="width:100px"><input id="sg" value="${esc(s.grade)}" placeholder="학년" style="width:90px"><input id="ss" value="${esc(s.school)}" placeholder="학교" style="width:150px"><input id="se" value="${esc(eidOf(s))}" placeholder="학원 ID" style="width:110px"><button class="btn pri" onclick="saveStu('${sid}')">저장</button></div>
    <div class="row" style="margin-top:8px">${s.archived?`<button class="btn" onclick="archiveStu('${sid}')">퇴원 취소(복원)</button>`:`<button class="btn" onclick="archiveStu('${sid}')">퇴원 처리 (모든 반에서 빼고 보관)</button>`}${hasResults(sid)?'':`<button class="btn danger" onclick="delStu('${sid}')">삭제</button>`}</div></div></details>
-  <h3>평가·조언 (상담 참고)</h3>${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점${bdTxt(e,sid)} · 오답 ${wrongList(e,sid).join(', ')||'없음'}</div><div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
+  <h3>평가·조언 (상담 참고)</h3>${notes.length?notes.map(({e,n})=>`<div class="card" style="margin-bottom:8px"><div class="sub">${esc(e.date)} · ${esc(e.name)} · ${fmt(score(e,sid))}점${bdTxt(e,sid)} · 오답 ${wrongDetail(e,sid,true)||'없음'}</div>${diffLine(e,sid,true)}<div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div></div>`).join(''):'<p class="note">아직 평가가 없어요. 시험지와 채점 이미지를 Claude에게 주면 만들어 드려요.</p>'}
+  ${diffStuBlock(sid)}
   ${causeBlock(sid)}
   <h3>수업 기록</h3>${lessonBlock(sid)}
   <h3>출결</h3>${attCalendar(sid)}${attBlock(sid)}
