@@ -64,7 +64,7 @@ table.g td.q.x{background:var(--x)}table.g td.q.x button:last-child{color:var(--
 </style>
 </head>
 <body>
-<header><h1 onclick="location.hash='#/'">반 관리</h1><span id="syncState" class="sub"></span><nav><button class="btn sm" id="undoBtn" onclick="undo()" title="직전 동작 되돌리기 (Ctrl+Z)">↶ 되돌리기</button><button class="btn sm" id="redoBtn" onclick="redo()" title="다시 실행">↷</button><button class="btn sm" onclick="location.hash='#/naesin'">내신</button><button class="btn sm" onclick="location.hash='#/'">반</button><button class="btn sm" onclick="location.hash='#/backup'">백업</button></nav></header>
+<header><h1 onclick="location.hash='#/'">반 관리</h1><span id="syncState" class="sub"></span><nav><button class="btn sm" id="backBtn" onclick="goBack()" title="이전 화면으로 (앱 안에서 본 순서대로)">← 뒤로</button><button class="btn sm" id="undoBtn" onclick="undo()" title="직전 동작 되돌리기 (Ctrl+Z)">↶ 되돌리기</button><button class="btn sm" id="redoBtn" onclick="redo()" title="다시 실행">↷</button><button class="btn sm" onclick="location.hash='#/naesin'">내신</button><button class="btn sm" onclick="location.hash='#/'">반</button><button class="btn sm" onclick="location.hash='#/backup'">백업</button></nav></header>
 <main id="app"></main>
 <div id="printArea"></div>
 <script src="roster.js"></script>
@@ -235,6 +235,12 @@ const allUnits=()=>[...new Set([...DB.exams.flatMap(e=>e.items.map(i=>(i.unit||'
 
 /* ===== 라우터 ===== */
 window.addEventListener('hashchange',render);
+/* 뒤로가기: 앱 안에서 본 화면 순서를 기억해서 한 단계씩 돌아가요 */
+const NAVST=[location.hash||'#/'];let NAVSKIP=false;
+function updateBack(){const b=document.getElementById('backBtn');if(b)b.disabled=NAVST.length<=1}
+window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack();return}const h=location.hash||'#/';if(NAVST[NAVST.length-1]!==h)NAVST.push(h);if(NAVST.length>80)NAVST.shift();updateBack()});
+function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
+document.addEventListener('DOMContentLoaded',updateBack);
 function render(){
   const [path,qs]=location.hash.split('?');
   const [p,a,b]=path.replace(/^#\/?/,'').split('/');
