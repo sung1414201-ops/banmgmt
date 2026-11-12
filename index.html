@@ -242,7 +242,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261112231927';
+const BUILD_ID='20261112232314';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -1073,7 +1073,7 @@ function printScores(){const w=document.getElementById('swrap');if(!w)return;$('
 /* ===== 난이도(하·중·상) 표시와 난이도별 정답·오답 ===== */
 const dGrp=d=>d<=0?'':d<=2?'하':d===3?'중':'상';
 const DCOL={하:'#16a34a',중:'#d97706',상:'#dc2626'};
-function dTag(it){const d=+(it&&it.diff)||0;if(!d)return '';const g=dGrp(d);return `<span style="display:inline-block;font-size:10px;line-height:1;padding:2px 5px;border-radius:99px;background:${DCOL[g]};color:#fff;vertical-align:middle" title="난이도 ${D5[d]}">${g}</span>`}
+function dTag(it){const d=+(it&&it.diff)||0;if(!d)return '';const g=dGrp(d);return `<span style="display:inline-block;font-size:11px;line-height:1;padding:3px 7px;border-radius:99px;background:${DCOL[g]};color:#fff;vertical-align:middle" title="난이도 ${D5[d]}">${g}</span>`}
 function dLbl(it){const d=+(it&&it.diff)||0;return d?dGrp(d):''}
 function wrongDetail(e,sid,html){ // "3번(상), 7번(중·부분)"
   const r=(DB.results[e.id]||{})[sid];if(!r||!r.m)return '';
@@ -1281,7 +1281,7 @@ function resultGrid(pane,e,c){
   GRID={e,c};
   const cell=(sid,i)=>{const r=R[sid],v=r&&r.m?r.m[i]:null,oc=`onclick="cycMark('${e.id}','${sid}',${i})"`;const pf=r&&r.p?(+r.p[i]||0):0;if((v>0&&v<1)||(v===0&&pf>0)){const f=v>0?v:pf;return `<td class="q" ${oc} style="color:#d97706;font-weight:700;cursor:pointer" title="부분점수 ${fmt(f*(+e.items[i].pt||0))}점">△</td>`}return v===1?`<td class="q o" ${oc} style="cursor:pointer">○</td>`:v===0?`<td class="q x" ${oc} style="cursor:pointer">✕</td>`:`<td class="q" ${oc} style="cursor:pointer">·</td>`};
   pane.innerHTML=`<div class="row" style="margin-bottom:6px"><button class="btn sm" onclick="toggleGridOpen()">${GRID_OPEN?'▾ 문항별 ○✕ 접기':'▸ 문항별 ○✕ 펼치기'}</button><span class="sub">${GRID_OPEN?'':'접어 두면 점수·등수·평균 줄만 보여요 · '}누르면 다시 열려요</span></div><div class="scroll"><table class="g"><thead><tr><th class="qh">문항 / 정답<div class="sub" style="font-size:11px;font-weight:400">반 평균 ${fmt(avg(ms.map(x=>score(e,x.id))))}점</div></th>${ms.map(m=>`<th class="${m.hold?'hold':''}"><a href="#/student/${m.id}" style="color:inherit;text-decoration:none">${esc(stu(m.id).name)}</a><div class="sc">${fmt(score(e,m.id))}</div><div class="sub" style="font-size:11px;white-space:nowrap">${gridSub(e,ms,m.id)}</div></th>`).join('')}</tr></thead>
-  <tbody>${GRID_OPEN?e.items.map((it,i)=>`<tr><td class="qh"><span class="ans">${i+1}번 ${dTag(it)} ${esc(it.ans)}</span><div class="un">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}</div></td>${ms.map(m=>cell(m.id,i)).join('')}</tr>`).join(''):''}
+  <tbody>${GRID_OPEN?e.items.map((it,i)=>`<tr><td class="qh"><span class="ans">${i+1}번 ${dTag(it)} ${esc(it.ans)}</span><div class="un">${esc(it.unit)}${it.kind?' · '+esc(it.kind):''}${(+it.diff||0)?` · <b style="color:${DCOL[dGrp(+it.diff)]}">난이도 ${D5[+it.diff]}</b>`:''}</div></td>${ms.map(m=>cell(m.id,i)).join('')}</tr>`).join(''):''}
   <tr><td class="qh sub">정답률</td>${ms.map(m=>{const r=R[m.id],mk=r&&r.m?r.m.filter(v=>v!=null):[];return `<td class="sub">${mk.length?Math.round(mk.filter(v=>v===1).length/mk.length*100)+'%':'-'}</td>`}).join('')}</tr>
   <tr><td class="qh sub">원점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub">${P?fmt(P.raw):'-'}</td>`}).join('')}</tr>
   <tr><td class="qh sub">부분점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub" style="${P&&P.part>0?'color:#d97706;font-weight:700':''}">${P?fmt(P.part):'-'}</td>`}).join('')}</tr>
