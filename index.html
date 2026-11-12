@@ -242,7 +242,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261112225151';
+const BUILD_ID='20261112230109';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -1163,6 +1163,7 @@ function resultGrid(pane,e,c){
   <tr><td class="qh sub">부분점수</td>${ms.map(m=>{const P=scoreParts(e,m.id);return `<td class="sub" style="${P&&P.part>0?'color:#d97706;font-weight:700':''}">${P?fmt(P.part):'-'}</td>`}).join('')}</tr>
   ${(+e.base||0)>0?`<tr><td class="qh sub">기본점수</td>${ms.map(m=>`<td class="sub">${score(e,m.id)==null?'-':fmt(+e.base)}</td>`).join('')}</tr>`:''}
   <tr><td class="qh sub"><b>총합</b></td>${ms.map(m=>`<td><b>${fmt(score(e,m.id))}</b></td>`).join('')}</tr>
+  <tr><td class="qh sub"><b>등수</b></td>${ms.map(m=>{const sc=score(e,m.id),all=ms.map(x=>score(e,x.id)).filter(v=>v!=null);return `<td><b style="color:#1968b3">${sc==null||all.length<2?'-':(1+all.filter(v=>v>sc).length)+'등'}</b></td>`}).join('')}</tr>
   <tr><td class="qh sub">오답 번호<br>빠른 입력</td>${ms.map(m=>`<td><input style="width:62px;font-size:12px" placeholder="3,7" onchange="quickWrong('${e.id}','${m.id}',this.value)"></td>`).join('')}</tr>
   <tr><td class="qh sub">점수<br>직접 입력</td>${ms.map(m=>{const r=R[m.id];return `<td><input type="number" step="0.5" style="width:62px;font-size:12px" placeholder="${fmt(score(e,m.id))==='-'?'':fmt(score(e,m.id))}" value="${r&&r.total!=null&&r.total!==''?r.total:''}" onchange="setTotal('${e.id}','${m.id}',this.value)"></td>`}).join('')}</tr></tbody></table></div>
   <p class="note" style="margin-top:10px"><b>입력 방법</b> ① 칸을 누르면 ○ → ✕ → △(부분) → ○ 로 바뀌어요. ② 아래 [오답 번호 빠른 입력]에 <b>3,7,12</b>처럼 쓰면 그 번호만 ✕, 나머지는 ○예요 (전부 맞으면 <b>0</b>, 지우려면 <b>-</b>). ③ [점수 직접 입력]을 쓰면 점수는 입력한 값을 쓰고, ○✕는 단원·유형 분석에만 반영돼요.</p>`;
@@ -1179,7 +1180,7 @@ function analysis(pane,e,c){
   const scs=rows.filter(r=>r.sc!=null).map(r=>r.sc);
   pane.innerHTML=`<div class="row"><div class="card"><div class="sub">반 평균</div><div class="sc">${fmt(avg(scs))}점</div></div><div class="card"><div class="sub">입력 인원</div><div class="sc">${scs.length}/${ids.length}</div></div><div class="card"><div class="sub">최고/최저</div><div class="sc">${scs.length?fmt(Math.max(...scs))+'/'+fmt(Math.min(...scs)):'-'}</div></div><div class="card"><div class="sub">시험 난이도</div><div class="sc">${diffLabel(diffAvgNum(e))}</div></div></div>
   <h3>학생별 평가·조언 (상담 참고)</h3>
-  ${rows.map((r,i)=>{const n=noteOf(e,r.s),w=wrongList(e,r.s);return `<div class="card" style="margin-bottom:8px"><div class="row"><b><a href="#/student/${r.s}" style="color:inherit">${esc(stu(r.s).name)}</a></b><span class="sc">${fmt(r.sc)}점</span>${bdTxt(e,r.s)}<span class="sub">${esc(stu(r.s).grade)} · ${esc(stu(r.s).school)}</span><span class="sp"></span><button class="btn sm" onclick="printReport('${r.s}')">성적표</button></div>
+  ${rows.map((r,i)=>{const n=noteOf(e,r.s),w=wrongList(e,r.s);return `<div class="card" style="margin-bottom:8px"><div class="row"><b><a href="#/student/${r.s}" style="color:inherit">${esc(stu(r.s).name)}</a></b><span class="sc">${fmt(r.sc)}점</span>${bdTxt(e,r.s)}${r.sc!=null&&scs.length>1?`<span class="badge d">${1+scs.filter(x=>x>r.sc).length}등 / ${scs.length}명</span>`:''}<span class="sub">${esc(stu(r.s).grade)} · ${esc(stu(r.s).school)}</span><span class="sp"></span><button class="btn sm" onclick="printReport('${r.s}')">성적표</button></div>
     <div class="sub">오답 문항: ${w.length?w.join(', ')+'번':'없음'}</div>${whyList(e,r.s)}
     ${n?`<div style="margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}</div><div style="margin-top:6px;white-space:pre-wrap"><b>조언</b>
 ${esc(n.advice)}</div>`:'<div class="sub" style="margin-top:6px">아직 평가가 없어요. Claude에게 분석을 요청해 주세요.</div>'}</div>`}).join('')}
