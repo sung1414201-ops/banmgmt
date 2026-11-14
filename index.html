@@ -254,7 +254,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261114171658';
+const BUILD_ID='20261114172216';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -474,7 +474,7 @@ function bucketTable(B){
 }
 const periodBtns=(mode)=>`<div class="row" style="margin-bottom:10px">${[['m','월별'],['q','분기별'],['a','전체']].map(([m,t])=>`<button class="btn sm ${mode===m?'pri':''}" onclick="setGP('${m}')">${t}</button>`).join('')}<span class="sub">분기는 1~3월·4~6월·7~9월·10~12월 기준이에요.</span></div>`;
 function recTable(R){
-  return `<table class="t"><tr><th>날짜</th><th>구분</th><th>시험·단원</th><th>점수</th><th>반 내 등수</th><th class="hide-s">반 평균</th></tr>${R.slice().reverse().map(r=>`<tr><td>${esc(r.date)}</td><td>${r.t==='exam'?'정규':'일일'}</td><td>${esc(r.name)}</td><td><b>${fmt(r.sc)}</b>/${fmt(r.max)} <span class="sub">(${f0(r.p)}%)</span></td><td>${r.n>=2?r.rank+'/'+r.n:'-'}</td><td class="hide-s">${fmt(Math.round(r.avg/100*r.max*10)/10)}</td></tr>`).join('')}</table>`;
+  return `<table class="t"><tr><th>날짜</th><th>구분</th><th>반</th><th>시험·단원</th><th>점수</th><th>반 내 등수</th><th class="hide-s">반 평균</th></tr>${R.slice().reverse().map(r=>`<tr><td>${esc(r.date)}</td><td>${r.t==='exam'?'정규':'일일'}</td><td>${esc((cls(r.cid)||{}).name||'')}</td><td>${esc(r.name)}</td><td><b>${fmt(r.sc)}</b>/${fmt(r.max)} <span class="sub">(${f0(r.p)}%)</span></td><td>${r.n>=2?r.rank+'/'+r.n:'-'}</td><td class="hide-s">${fmt(Math.round(r.avg/100*r.max*10)/10)}</td></tr>`).join('')}</table>`;
 }
 function growthBlock(sid,trk){
   const R=recsOf(sid,trk);
@@ -1412,6 +1412,8 @@ let UNITGRP=1; // 0 세부 그대로 · 1 괄호 내용 빼고 묶기 · 2 크�
 function setUnitGrp(v){UNITGRP=+v;keepRender()}
 const grpSel=()=>`<label class="sub">단원 묶기 <select onchange="setUnitGrp(this.value)"><option value="0" ${UNITGRP===0?'selected':''}>세부 단원 그대로</option><option value="1" ${UNITGRP===1?'selected':''}>괄호 내용 빼고 묶기</option><option value="2" ${UNITGRP===2?'selected':''}>크게 묶기(첫 단어)</option></select></label>`;
 function unitKey(raw){if(UNITGRP===0||raw==='(단원 미지정)')return raw;let u=raw.replace(/\s*[(（][^)）]*[)）]\s*/g,'').trim()||raw;if(UNITGRP===2){const f=u.split(/[\s·,]+/)[0];if(f)u=f}return u}
+const clsName=(e,sid)=>((cls(examClass(e,sid))||{}).name||'');
+const clsBadge=(e,sid)=>{const n=clsName(e,sid);return n?`<span class="badge" style="background:#e8eefc;color:#1d3f8a">${esc(n)}</span>`:''};
 const md=d=>`${+d.slice(5,7)}/${+d.slice(8)}`;
 const mkS=x=>x.ok?'<b style="color:#16a34a">○</b>':x.v>0?'<b style="color:#d97706">△</b>':'<b style="color:#dc2626">✕</b>';
 function examRec(e,sid){const sc=score(e,sid);if(sc==null)return null;const cid=examClass(e,sid),max=totalPt(e)||100;
@@ -1426,7 +1428,7 @@ function qLog(sid,o){ // 문항 단위 기록(정규시험): o={course,trk,from,
     if(o.from&&e.date<o.from)return;if(o.to&&e.date>o.to)return;
     r.m.forEach((v,i)=>{if(v==null)return;const it=e.items[i]||{},raw=(it.unit||'').trim()||'(단원 미지정)';
       const u=unitKey(raw);
-      out.push({e,i,date:e.date,unit:u,raw,kind:it.kind||'',diff:+it.diff||0,v:qv(r,i),ok:+v>=1,w:(r.w||{})[i]||null,it})})});
+      out.push({sid,e,i,date:e.date,unit:u,raw,kind:it.kind||'',diff:+it.diff||0,v:qv(r,i),ok:+v>=1,w:(r.w||{})[i]||null,it})})});
   return out.sort((a,b)=>a.date.localeCompare(b.date)||a.e.name.localeCompare(b.e.name)||a.i-b.i);
 }
 function unitGroups(L){
@@ -1438,7 +1440,7 @@ function unitGroups(L){
 }
 const tlOf=a=>{const G=[];a.forEach(x=>{const l=G[G.length-1];if(l&&l.id===x.e.id)l.m.push(x);else G.push({id:x.e.id,d:x.date,m:[x]})});return G};
 function unitLogTable(g){
-  return `<div class="scroll" style="max-height:none"><table class="t"><tr><th>날짜</th><th>시험</th><th>번호</th><th>결과</th><th>난이도</th><th>원인</th><th>이유</th></tr>${g.a.map(x=>`<tr><td style="white-space:nowrap">${md(x.date)}</td><td>${esc(x.e.name.slice(0,26))}</td><td style="white-space:nowrap">${x.i+1}번${x.raw!==g.u?` <span class="sub">${esc(x.raw)}</span>`:''}</td><td>${mkS(x)}</td><td>${dTag(x.it)}</td><td>${x.ok?'':esc((x.w&&x.w.c)||'')}</td><td>${x.ok?'':esc((x.w&&x.w.t)||'')}</td></tr>`).join('')}</table></div>`;
+  return `<div class="scroll" style="max-height:none"><table class="t"><tr><th>날짜</th><th>시험</th><th>번호</th><th>결과</th><th>난이도</th><th>원인</th><th>이유</th></tr>${g.a.map(x=>`<tr><td style="white-space:nowrap">${md(x.date)}</td><td>${esc(x.e.name.slice(0,26))} ${clsBadge(x.e,x.sid)}</td><td style="white-space:nowrap">${x.i+1}번${x.raw!==g.u?` <span class="sub">${esc(x.raw)}</span>`:''}</td><td>${mkS(x)}</td><td>${dTag(x.it)}</td><td>${x.ok?'':esc((x.w&&x.w.c)||'')}</td><td>${x.ok?'':esc((x.w&&x.w.t)||'')}</td></tr>`).join('')}</table></div>`;
 }
 function unitFold(key,g){
   const tl=tlOf(g.a).slice(-6).map(t=>`<span style="white-space:nowrap">${md(t.d)} ${t.m.map(mkS).join('')}</span>`).join(' · ');
@@ -1465,7 +1467,7 @@ function courseSection(sid){
   if(st.view==='exam'){
     const exs=[...new Map(L.map(x=>[x.e.id,x.e])).values()].sort((a,b)=>a.date.localeCompare(b.date));
     body=exs.map(e=>{const r=examRec(e,sid),bad=wrongList(e,sid);
-      const head=`<span>${md(e.date)}</span><b>${esc(e.name.slice(0,34))}</b><span class="badge d">${fmt(r.sc)}/${fmt(r.max)}</span>${r.n>=2?`<span class="badge">${r.rank}/${r.n}등</span>`:''}<span class="badge">${esc(cLabel(cKey(e)))}</span><span class="sub">오답 ${bad.length?bad.join(', '):'없음'}</span>`;
+      const head=`<span>${md(e.date)}</span><b>${esc(e.name.slice(0,34))}</b><span class="badge d">${fmt(r.sc)}/${fmt(r.max)}</span>${r.n>=2?`<span class="badge">${r.rank}/${r.n}등</span>`:''}<span class="badge">${esc(cLabel(cKey(e)))}</span>${clsBadge(e,sid)}<span class="sub">오답 ${bad.length?bad.join(', '):'없음'}</span>`;
       return fold('cx-'+sid+'-'+e.id,head,examLogBlock(sid,e,L),false)}).join('')||'<p class="note">기록이 없어요.</p>';
   }else body=G.map(g=>unitFold('cu-'+sid+'-'+st.course+'-'+g.u,g)).join('')||'<p class="note">단원 정보가 있는 기록이 없어요.</p>';
   const inner=`<div class="row">${chips}</div>
@@ -1518,7 +1520,7 @@ function reportBuilder(app,sid,q){
    <div class="row" style="margin-top:8px"><b>과정</b><select onchange="rpSet('${sid}','course',this.value)"><option value="*" ${s.course==='*'?'selected':''}>전체</option>${cs.map(k=>`<option value="${esc(k)}" ${s.course===k?'selected':''}>${esc(cLabel(k))}</option>`).join('')}</select>
     <b style="margin-left:8px">구분</b><select onchange="rpSet('${sid}','trk',this.value)"><option value="" ${!s.trk?'selected':''}>정규 기록</option><option value="내신" ${s.trk==='내신'?'selected':''}>내신 기록</option></select></div>
    <div class="row" style="margin-top:10px"><b>리포트에 넣을 시험</b><span class="sub">${X.length} / ${list.length}개 선택</span><button class="btn sm" onclick="rpAll('${sid}',true)">전체 선택</button><button class="btn sm" onclick="rpAll('${sid}',false)">전체 해제</button></div>
-   <div style="max-height:280px;overflow:auto;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:0 8px">${list.length?list.map(e=>`<label class="row" style="gap:8px;flex-wrap:nowrap;padding:5px 0;border-bottom:1px solid var(--line)"><input type="checkbox" ${s.off[e.id]?'':'checked'} onchange="rpOff('${sid}','${e.id}',this.checked)"><span class="sub" style="min-width:42px">${md(e.date)}</span><span style="flex:1">${esc(e.name)}</span><span class="badge">${esc(cLabel(cKey(e)))}</span><b>${fmt(score(e,sid))}점</b></label>`).join(''):'<div class="sub" style="padding:10px">이 조건에 맞는 시험이 없어요. 기간이나 과정을 바꿔 보세요.</div>'}</div>
+   <div style="max-height:280px;overflow:auto;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:0 8px">${list.length?list.map(e=>`<label class="row" style="gap:8px;flex-wrap:nowrap;padding:5px 0;border-bottom:1px solid var(--line)"><input type="checkbox" ${s.off[e.id]?'':'checked'} onchange="rpOff('${sid}','${e.id}',this.checked)"><span class="sub" style="min-width:42px">${md(e.date)}</span><span style="flex:1">${esc(e.name)}</span><span class="badge">${esc(cLabel(cKey(e)))}</span>${clsBadge(e,sid)}<b>${fmt(score(e,sid))}점</b></label>`).join(''):'<div class="sub" style="padding:10px">이 조건에 맞는 시험이 없어요. 기간이나 과정을 바꿔 보세요.</div>'}</div>
    <div class="row" style="margin-top:10px"><b>포함 항목</b>${RPINC.map(chk).join('')}<label>평가·조언 <select onchange="rpSet('${sid}','notes',this.value)"><option value="all" ${s.notes==='all'?'selected':''}>시험마다 모두</option><option value="last" ${s.notes==='last'?'selected':''}>마지막 시험만</option><option value="none" ${s.notes==='none'?'selected':''}>넣지 않기</option></select></label></div></div>
   <h3>미리보기 <span class="sub">[인쇄 / PDF 저장]을 누르고 프린터 대신 'PDF로 저장'을 고르면 PDF가 돼요</span></h3>
   <div class="rep pv" id="rpv">${reportHTML(sid,s)}</div>`;
@@ -1539,7 +1541,7 @@ function reportHTML(sid,s){
     exams='<h3>날짜별 시험 정보</h3>'+X.map((e,xi)=>{
       const r=examRec(e,sid),P=scoreParts(e,sid),n=noteOf(e,sid),r0=DB.results[e.id][sid],bad=(r0.m||[]).map((v,i)=>({v,i,it:e.items[i]||{}})).filter(x=>x.v!=null&&+x.v<1);
       const showN=n&&(s.notes==='all'||(s.notes==='last'&&xi===X.length-1));
-      return `<div class="exb"><div style="font-weight:700;font-size:14px;margin-top:12px">${esc(e.date)} · ${esc(e.name)} <span style="font-weight:400">[${esc(e.type)}${courseOf(e)?' · '+esc(courseOf(e)):''}]</span></div>
+      return `<div class="exb"><div style="font-weight:700;font-size:14px;margin-top:12px">${esc(e.date)} · ${esc(e.name)} <span style="font-weight:400">[${esc(e.type)}${courseOf(e)?' · '+esc(courseOf(e)):''}${clsName(e,sid)?' · '+esc(clsName(e,sid)):''}]</span></div>
       <table><tr><th>점수</th><th>반 평균</th><th>등수</th><th>시험 난이도</th><th>난이도별 정답</th></tr><tr><td><b>${fmt(r.sc)}</b>/${fmt(r.max)}${bdTxt(e,sid)}</td><td>${fmt(r.avgRaw)}</td><td>${r.n>=2?r.rank+'/'+r.n:'-'}</td><td>${esc(diffLabel(diffAvgNum(e)))}</td><td>${esc(diffLine(e,sid,false).replace(/^난이도별 /,''))||'-'}</td></tr></table>
       ${bad.length?`<table><tr><th style="width:48px">번호</th><th>단원</th><th style="width:48px">난이도</th><th>원인</th><th>이유 · 부분점수</th></tr>${bad.map(({v,i,it})=>{const w=(r0.w||{})[i]||{},pf=+((r0.p||{})[i])||(+v>0&&+v<1?+v:0);return `<tr><td>${i+1}번</td><td>${esc(it.unit||'')}</td><td>${dLbl(it)||'-'}</td><td>${esc(w.c||'')}</td><td>${esc(w.t||'')}${pf>0?` <b>(부분 ${fmt(pf*(+it.pt||0))}점)</b>`:''}</td></tr>`}).join('')}</table>`:'<div style="margin-top:4px">오답 없음 (전 문항 정답)</div>'}
       ${showN?`<div style="border:1px solid #bbb;padding:8px;margin-top:6px;white-space:pre-wrap"><b>평가</b> ${esc(n.eval)}\n<b>조언</b>\n${esc(n.advice)}</div>`:''}</div>`}).join('');
