@@ -242,7 +242,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261112232737';
+const BUILD_ID='20261114152259';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -923,7 +923,7 @@ function typePreset(t){syncMeta();const e=DRAFT;if(e._existing)return;
   e.items=t==='서술테스트'?mk(5,20,'서술'):mk(20,5);
   examEditor($('#app'),e._existing,e._id.replace('new:',''))}
 /* ===== 부분점수·오답 이유 기록 ===== */
-const CAUSES=['계산 실수','부호 실수','개념 부족','조건 해석 오류','풀이 중단(미완성)','식 설정 오류','풀이 없음(답만)','시간 부족·미응시','판독 불가','기타'];
+const CAUSES=['계산 실수','부호 실수','개념 부족','조건 해석 오류','풀이 중단(미완성)','식 설정 오류','풀이 없음(답만)','시험 후 정정','시간 부족·미응시','판독 불가','기타'];
 function bdTxt(e,sid){const P=scoreParts(e,sid);if(!P||P.fixed)return '';if(!(P.part>0||P.base>0))return '';return ` <span class="sub">(원점수 ${fmt(P.raw)}${P.part>0?' + 부분 '+fmt(P.part):''}${P.base>0?' + 기본 '+fmt(P.base):''})</span>`}
 function whyList(e,sid){
   const r=(DB.results[e.id]||{})[sid];if(!r)return '';
