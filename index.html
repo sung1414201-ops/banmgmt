@@ -254,7 +254,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261114171440';
+const BUILD_ID='20261114171658';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -1408,8 +1408,10 @@ const cLabel=k=>k==='-'?'(과정 미지정)':k==='*'?'전체':k;
 const allCourses=()=>[...new Set([...COURSE_DEF,...DB.exams.map(courseOf).filter(Boolean)])];
 function courseOpts(e){const cur=(e.course||'').trim();return `<option value="" ${!cur?'selected':''}>자동 (${esc(guessCourse(e)||'미지정')})</option>${allCourses().map(c=>`<option ${c===cur?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">+ 새 과정 입력…</option>`}
 function setCourse(eid,v){const e=DB.exams.find(x=>x.id===eid);if(v==='__new'){v=(prompt('과정 이름을 입력해 주세요 (예: 공수1, 대수)')||'').trim();if(!v)return render()}e.course=v;save();render()}
-let UNITGRP=true;
-function setUnitGrp(v){UNITGRP=v;keepRender()}
+let UNITGRP=1; // 0 세부 그대로 · 1 괄호 내용 빼고 묶기 · 2 크게 묶기(첫 단어)
+function setUnitGrp(v){UNITGRP=+v;keepRender()}
+const grpSel=()=>`<label class="sub">단원 묶기 <select onchange="setUnitGrp(this.value)"><option value="0" ${UNITGRP===0?'selected':''}>세부 단원 그대로</option><option value="1" ${UNITGRP===1?'selected':''}>괄호 내용 빼고 묶기</option><option value="2" ${UNITGRP===2?'selected':''}>크게 묶기(첫 단어)</option></select></label>`;
+function unitKey(raw){if(UNITGRP===0||raw==='(단원 미지정)')return raw;let u=raw.replace(/\s*[(（][^)）]*[)）]\s*/g,'').trim()||raw;if(UNITGRP===2){const f=u.split(/[\s·,]+/)[0];if(f)u=f}return u}
 const md=d=>`${+d.slice(5,7)}/${+d.slice(8)}`;
 const mkS=x=>x.ok?'<b style="color:#16a34a">○</b>':x.v>0?'<b style="color:#d97706">△</b>':'<b style="color:#dc2626">✕</b>';
 function examRec(e,sid){const sc=score(e,sid);if(sc==null)return null;const cid=examClass(e,sid),max=totalPt(e)||100;
@@ -1423,7 +1425,7 @@ function qLog(sid,o){ // 문항 단위 기록(정규시험): o={course,trk,from,
     if(o.course&&o.course!=='*'&&cKey(e)!==o.course)return;
     if(o.from&&e.date<o.from)return;if(o.to&&e.date>o.to)return;
     r.m.forEach((v,i)=>{if(v==null)return;const it=e.items[i]||{},raw=(it.unit||'').trim()||'(단원 미지정)';
-      const u=UNITGRP?(raw.replace(/\s*[(（][^)）]*[)）]\s*/g,'').trim()||raw):raw;
+      const u=unitKey(raw);
       out.push({e,i,date:e.date,unit:u,raw,kind:it.kind||'',diff:+it.diff||0,v:qv(r,i),ok:+v>=1,w:(r.w||{})[i]||null,it})})});
   return out.sort((a,b)=>a.date.localeCompare(b.date)||a.e.name.localeCompare(b.e.name)||a.i-b.i);
 }
@@ -1467,7 +1469,7 @@ function courseSection(sid){
       return fold('cx-'+sid+'-'+e.id,head,examLogBlock(sid,e,L),false)}).join('')||'<p class="note">기록이 없어요.</p>';
   }else body=G.map(g=>unitFold('cu-'+sid+'-'+st.course+'-'+g.u,g)).join('')||'<p class="note">단원 정보가 있는 기록이 없어요.</p>';
   const inner=`<div class="row">${chips}</div>
-  <div class="row" style="margin:8px 0"><button class="btn sm ${st.view==='unit'?'pri':''}" onclick="setCrs('${sid}','view','unit')">단원별로 보기</button><button class="btn sm ${st.view==='exam'?'pri':''}" onclick="setCrs('${sid}','view','exam')">시험별로 보기</button><label class="sub"><input type="checkbox" ${UNITGRP?'checked':''} onchange="setUnitGrp(this.checked)"> 비슷한 단원 묶기 <span style="opacity:.7">(예: 나머지정리(중근 조건) → 나머지정리)</span></label></div>
+  <div class="row" style="margin:8px 0"><button class="btn sm ${st.view==='unit'?'pri':''}" onclick="setCrs('${sid}','view','unit')">단원별로 보기</button><button class="btn sm ${st.view==='exam'?'pri':''}" onclick="setCrs('${sid}','view','exam')">시험별로 보기</button>${grpSel()}<span class="sub">(예: 나머지정리(중근 조건)·나머지정리 합성 → 나머지정리)</span></div>
   ${sumRow?`<div class="card" style="margin-bottom:8px;font-size:14px"><b>단원 변화 요약</b>${sumRow}</div>`:''}
   <div class="sub" style="margin-bottom:4px">단원 옆 숫자 = 맞힌 문항 / 푼 문항 (예: 3/5 = 5문항 중 3문항 정답). 제목을 누르면 날짜순 기록과 틀린 이유가 펼쳐져요. 같은 단원의 앞쪽 기록 대비 최근 기록으로 개선·하락을 판정해요(3문항 이상일 때).</div>${body}`;
   return fold('st-course','과정·단원별 성적 기록 <span class="sub">공수1 · 공수2 · 대수 … 단원별 누적·개선 여부</span>',inner,true);
@@ -1484,7 +1486,7 @@ function classUnitBlock(c,trk){
     a.filter(x=>!x.ok).forEach(x=>{const nm=stu(x.sid).name;W[nm]=(W[nm]||0)+1});
     return {u,n,ok,pct:c0/n*100,st,exams:new Set(a.map(x=>x.e.id)).size,W:Object.entries(W).sort((x,y)=>y[1]-x[1])}}).sort((x,y)=>x.pct-y.pct);
   const chips=`<button class="btn sm ${RCRS==='*'?'pri':''}" onclick="setRC('*')">전체</button>`+cs.map(k=>`<button class="btn sm ${RCRS===k?'pri':''}" onclick="setRC('${esc(k)}')">${esc(cLabel(k))}</button>`).join('');
-  const inner=`<div class="row">${chips}<label class="sub"><input type="checkbox" ${UNITGRP?'checked':''} onchange="setUnitGrp(this.checked)"> 비슷한 단원 묶기</label></div>
+  const inner=`<div class="row">${chips}${grpSel()}</div>
   ${rows.length?`<div class="scroll" style="max-height:none;margin-top:8px"><table class="t"><tr><th>단원</th><th>정답/문항</th><th>정답률</th><th>상태</th><th>시험</th><th>많이 틀린 학생</th></tr>${rows.map(r=>`<tr><td>${esc(r.u)}</td><td>${r.ok}/${r.n}</td><td style="min-width:120px"><div class="row" style="gap:6px;flex-wrap:nowrap"><div class="bar ${r.pct<60?'low':''}" style="width:64px;min-width:64px"><i style="width:${Math.round(r.pct)}%"></i></div>${Math.round(r.pct)}%</div></td><td>${stBadge(r.st)}</td><td>${r.exams}회</td><td class="sub" style="white-space:normal">${esc(r.W.slice(0,6).map(([n,k])=>n+(k>1?' ×'+k:'')).join(', '))||'-'}</td></tr>`).join('')}</table></div>`:'<p class="note">단원 정보가 있는 시험 기록이 아직 없어요.</p>'}`;
   return fold('rc-unit','과정·단원별 누적 (반 전체) <span class="sub">단원마다 맞힌 문항/푼 문항, 많이 틀린 학생</span>',inner,false);
 }
