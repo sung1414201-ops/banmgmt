@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="빠른정답"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>빠른정답 모음</title><link rel="manifest" href="quick.webmanifest"><link rel="apple-touch-icon" href="quick-icon-192.png"><meta name="theme-color" content="#8e1a7a">
 <style>
 :root{--bg:#f6f4f0;--card:#fff;--ink:#1d1b1a;--sub:#6b655f;--line:#e2ddd5;--pt:#8e1a7a;--chip:#efe9f3}
@@ -55,6 +55,96 @@ main{padding:14px 16px 60px;max-width:1900px;margin:0 auto}
 sup,sub{font-size:.7em;line-height:0}
 .note{color:var(--sub);font-size:13px;margin:6px 0}
 @media print{header{display:none}.unit{break-inside:avoid}}
+/* ===== 빠른정답 앱 레이어(폰·태블릿·PC 공용) — 클라우드판에만 덧씌움 ===== */
+:root{--hh:56px;--fs:1;--bar:58px;--r:14px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px)}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;color-scheme:light dark;-webkit-tap-highlight-color:transparent}
+body{overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+/* 상단 앱바 */
+header{padding:calc(8px + var(--sat)) calc(12px + var(--sar)) 8px calc(12px + var(--sal));gap:8px;flex-wrap:nowrap;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(12px);backdrop-filter:saturate(1.4) blur(12px)}
+header h1{font-size:18px;white-space:nowrap;letter-spacing:-.2px}
+header small{display:none}
+header .crumb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+header>span[style*="flex:1"]{display:none}
+header input#q{flex:0 1 260px;min-width:0;border-radius:20px;padding:8px 14px;font-size:15px}
+header .back{border-radius:20px;min-height:36px}
+#qaTools{display:flex;gap:6px;align-items:center;margin-left:auto}
+#qaTools button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;min-width:38px;height:36px;padding:0 10px;font-size:15px;cursor:pointer;line-height:1}
+#qaTools button:active{transform:scale(.94)}
+#qaTools button.on{color:#e0a100;border-color:#e0a100}
+#qaTools button[hidden]{display:none}
+body:not(.qa-book) #qaTools .qa-bk{display:none}
+/* 본문 */
+main{padding:14px calc(14px + var(--sar)) calc(var(--bar) + var(--sab) + 40px) calc(14px + var(--sal))}
+#app>*{animation:qaIn .22s ease both}
+@keyframes qaIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#app>*{animation:none}html{scroll-behavior:auto}}
+.ser{margin:22px 0 8px;font-size:calc(17px*var(--fs));scroll-margin-top:calc(var(--hh) + 56px)}
+.cards{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.card{position:relative;border-radius:var(--r);padding:14px 38px 14px 14px;min-height:64px;transition:transform .12s,box-shadow .12s,border-color .12s}
+.card:active{transform:scale(.98)}
+.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.10)}
+.card b{font-size:calc(15px*var(--fs));line-height:1.3}
+.card small{display:block;margin-top:4px}
+.card .fav{position:absolute;top:6px;right:6px;width:32px;height:32px;border:0;background:transparent;color:var(--sub);font-size:19px;cursor:pointer;border-radius:50%;opacity:.55}
+.card .fav.on{color:#e0a100;opacity:1}
+.card .fav:active{transform:scale(.88)}
+/* 홈의 즐겨찾기·최근 */
+.qaSec{margin:6px 0 4px}
+.qaSec .ser{margin-top:14px}
+.qaJump{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;margin:0 -2px;scrollbar-width:none;position:sticky;top:var(--hh);z-index:4;background:var(--bg)}
+.qaJump::-webkit-scrollbar{display:none}
+.qaJump span{flex:0 0 auto;background:var(--chip);border-radius:18px;padding:7px 14px;font-size:14px;cursor:pointer;white-space:nowrap}
+.qaJump span:active{transform:scale(.95)}
+/* 책 화면 */
+.chips{gap:8px}
+.chip{padding:9px 15px;font-size:calc(14px*var(--fs));border-radius:20px;min-height:38px;display:inline-flex;align-items:center}
+.chip.on{background:var(--pt);color:#fff;border-color:var(--pt)}
+.unit{border-radius:var(--r);padding:12px 16px 16px;scroll-margin-top:calc(var(--hh) + 60px)}
+.unit>h2{font-size:calc(17px*var(--fs))}
+.row{padding:5px 0;min-height:34px;align-items:baseline}
+.row .no{flex:0 0 46px;font-size:calc(14px*var(--fs))}
+.row .ans{font-size:calc(17px*var(--fs))}
+.steps{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+/* 상태 표시 */
+#qSt{bottom:calc(10px + var(--sab));left:calc(10px + var(--sal))}
+/* 폰: 하단 탭 바 */
+#qaBar{display:none}
+@media (max-width:700px){
+  header{flex-wrap:wrap;row-gap:6px}
+  header input#q{flex:1 1 100%;order:20;font-size:16px}
+  body.qa-book header input#q{display:none}
+  body.qa-book header{flex-wrap:nowrap}
+  body.qa-book header h1{display:none}
+  body.qa-book #qaTools{flex:0 0 auto}
+  main{padding-left:calc(10px + var(--sal));padding-right:calc(10px + var(--sar))}
+  .cards{grid-template-columns:repeat(2,1fr);gap:8px}
+  .fab{display:none!important}
+  .chips{flex-wrap:nowrap;overflow-x:auto;margin:0 -10px 12px;padding:6px 10px;position:sticky;top:var(--hh);z-index:4;background:var(--bg);scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto}
+  .steps{grid-template-columns:1fr}
+  #qaBar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;height:calc(var(--bar) + var(--sab));padding:0 var(--sar) var(--sab) var(--sal);
+    background:color-mix(in srgb,var(--card) 92%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+  #qaBar button{flex:1;border:0;background:transparent;color:var(--sub);font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+  #qaBar button b{font-size:21px;line-height:1;font-weight:400}
+  #qaBar button.on{color:var(--pt);font-weight:700}
+  #qaBar button:active{transform:scale(.94)}
+  #qSt{bottom:calc(var(--bar) + var(--sab) + 8px)}
+}
+/* 태블릿 이상: 책 화면은 왼쪽 단원 목록 + 오른쪽 내용 */
+@media (min-width:1000px){
+  body.qa-book #app{display:grid;grid-template-columns:240px minmax(0,1fr);gap:0 18px;align-items:start}
+  body.qa-book .chips{grid-column:1;grid-row:1 / span 200;position:sticky;top:calc(var(--hh) + 10px);flex-direction:column;flex-wrap:nowrap;align-self:start;max-height:calc(100vh - var(--hh) - 24px);overflow:auto;margin:0;padding:4px 2px}
+  body.qa-book .chip{border-radius:12px;justify-content:flex-start;width:100%}
+  body.qa-book .unit{grid-column:2}
+  body.qa-book .steps{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+}
+/* 설치 안내(아이폰) */
+#qaIos{position:fixed;left:12px;right:12px;bottom:calc(var(--bar) + var(--sab) + 12px);z-index:40;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.2);font-size:14px;line-height:1.5}
+#qaIos button{margin-top:8px;border:0;background:var(--pt);color:#fff;border-radius:16px;padding:6px 14px}
+@media print{#qaBar,#qaTools,#qaJump,.qaJump,#qSt,#qaIos{display:none!important}}
 </style></head><body>
 <header><button class="back" id="back" hidden>← 교재 목록</button><h1 id="home">빠른정답 모음</h1><small style="font-size:11px;opacity:.6;margin-left:6px;white-space:nowrap">클라우드판</small><span class="crumb" id="crumb"></span><span style="flex:1"></span><input id="q" placeholder="교재 검색 (예: 중2-1, 대수, 코어)"></header>
 <main id="app"></main>
@@ -266,6 +356,113 @@ route();
       else overlay(card('<p style="color:#dc2626">서버에 연결하지 못했어요. 인터넷을 확인해 주세요.</p><button class="back" onclick="location.reload()">다시 시도</button>'));
     }
   })();
+})();
+
+</script><script>
+/* 빠른정답 앱 레이어: 즐겨찾기·최근 본 책·글자 크기·스와이프·하단 탭·설치 안내 (기기 안에만 저장, 서버 사용 없음) */
+(function(){
+  const $=id=>document.getElementById(id);
+  const get=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
+  const set=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  let favs=get('qa_fav',[]),recents=get('qa_recent',[]),fs=get('qa_fs',1);
+  const root=document.documentElement;
+  const hdr=document.querySelector('header');
+  const curId=()=>location.hash.slice(1).split('/')[0];
+  const bookOf=id=>BOOKS.find(b=>b.id==id);
+  const isPhone=()=>matchMedia('(max-width:700px)').matches;
+
+  /* 글자 크기 */
+  function applyFs(){root.style.setProperty('--fs',fs);set('qa_fs',fs)}
+  applyFs();
+  /* 헤더 높이를 CSS 변수로 (고정 탭이 헤더 아래에 붙도록) */
+  function hh(){root.style.setProperty('--hh',hdr.offsetHeight+'px')}
+  hh();addEventListener('resize',hh);
+  if(window.ResizeObserver)new ResizeObserver(hh).observe(hdr);
+
+  /* 헤더 도구: ★ 가− 가+ 설치 */
+  const tools=document.createElement('span');tools.id='qaTools';
+  tools.innerHTML='<button id="qaFav" class="qa-bk" title="즐겨찾기" aria-label="즐겨찾기">☆</button><button id="qaFsM" class="qa-bk" title="글자 작게" aria-label="글자 작게">가-</button><button id="qaFsP" class="qa-bk" title="글자 크게" aria-label="글자 크게">가+</button><button id="qaInst" hidden title="앱으로 설치">앱 설치</button>';
+  hdr.appendChild(tools);
+  $('qaFsM').onclick=()=>{fs=Math.max(.85,+(fs-.1).toFixed(2));applyFs()};
+  $('qaFsP').onclick=()=>{fs=Math.min(1.5,+(fs+.1).toFixed(2));applyFs()};
+  $('qaFav').onclick=()=>{const id=curId();if(!id)return;const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs);syncStar()};
+  function syncStar(){const id=curId(),on=favs.includes(id);const b=$('qaFav');b.textContent=on?'★':'☆';b.classList.toggle('on',on)}
+
+  /* 하단 탭 바(폰) */
+  const bar=document.createElement('nav');bar.id='qaBar';
+  bar.innerHTML='<button data-a="home"><b>⌂</b>홈</button><button data-a="search"><b>⌕</b>검색</button><button data-a="fav"><b>★</b>즐겨찾기</button><button data-a="sync"><b>↻</b>업데이트</button>';
+  document.body.appendChild(bar);
+  bar.onclick=e=>{const a=e.target.closest('button');if(!a)return;const k=a.dataset.a;
+    if(k==='home'){if(curId())goHome();else scrollTo({top:0})}
+    else if(k==='search'){if(curId())goHome();setTimeout(()=>{$('q').focus()},60)}
+    else if(k==='fav'){if(curId())goHome();setTimeout(()=>{const s=document.querySelector('.qaSec.fav');if(s)s.scrollIntoView({block:'start'});else toast('★로 즐겨찾기를 추가해 보세요')},80)}
+    else if(k==='sync'){const s=$('qSt');if(s)s.click()}};
+  function barState(){bar.querySelector('[data-a=home]').classList.toggle('on',!curId())}
+
+  function toast(t){let d=$('qaToast');if(!d){d=document.createElement('div');d.id='qaToast';d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bar) + var(--sab) + 70px);z-index:60;background:#222;color:#fff;border-radius:18px;padding:8px 16px;font-size:14px;transition:opacity .3s;pointer-events:none';document.body.appendChild(d)}
+    d.textContent=t;d.style.opacity=1;clearTimeout(d._t);d._t=setTimeout(()=>d.style.opacity=0,1800)}
+
+  /* 홈 꾸미기: 별 버튼, 즐겨찾기·최근 본 책, 시리즈 바로가기 */
+  const miniCard=b=>'<a class="card" href="#'+b.id+'"><b>'+esc(label(b))+'</b><small>'+b.units.length+'개 단원 · '+b.n+'문항</small></a>';
+  function decorateHome(){
+    const app=$('app');if(!app)return;
+    app.querySelectorAll('a.card').forEach(a=>{
+      if(a.querySelector('.fav'))return;const id=a.getAttribute('href').slice(1);
+      const s=document.createElement('button');s.className='fav'+(favs.includes(id)?' on':'');s.textContent=favs.includes(id)?'★':'☆';s.setAttribute('aria-label','즐겨찾기');
+      s.onclick=e=>{e.preventDefault();e.stopPropagation();const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs);decorateHomeRefresh()};
+      a.appendChild(s)});
+    if($('q').value)return;                       // 검색 중에는 요약 구역을 만들지 않음
+    const fb=favs.map(bookOf).filter(Boolean),rb=recents.map(bookOf).filter(Boolean).filter(b=>!favs.includes(b.id)).slice(0,6);
+    let top='';
+    if(fb.length)top+='<div class="qaSec fav"><div class="ser">★ 즐겨찾기</div><div class="cards">'+fb.map(miniCard).join('')+'</div></div>';
+    if(rb.length)top+='<div class="qaSec"><div class="ser">최근 본 책</div><div class="cards">'+rb.map(miniCard).join('')+'</div></div>';
+    const sers=[...app.querySelectorAll(':scope>.ser')];
+    const jump=sers.length>1?'<div class="qaJump" id="qaJump">'+sers.map((s,i)=>'<span data-i="'+i+'">'+esc(s.textContent)+'</span>').join('')+'</div>':'';
+    app.insertAdjacentHTML('afterbegin',jump+top);
+    const j=$('qaJump');if(j)j.onclick=e=>{const t=e.target.closest('span');if(!t)return;sers[+t.dataset.i].scrollIntoView({behavior:'smooth',block:'start'})};
+    // 즐겨찾기·최근 카드에도 별 달기
+    app.querySelectorAll('.qaSec a.card').forEach(a=>{if(a.querySelector('.fav'))return;const id=a.getAttribute('href').slice(1);const s=document.createElement('button');s.className='fav'+(favs.includes(id)?' on':'');s.textContent=favs.includes(id)?'★':'☆';s.onclick=e=>{e.preventDefault();e.stopPropagation();const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs);decorateHomeRefresh()};a.appendChild(s)});
+  }
+  function decorateHomeRefresh(){const y=scrollY;home($('q').value);scrollTo(0,y)}
+  const _home=home;home=function(f){_home(f);decorateHome()};
+
+  /* 책 화면: 최근 본 책 기록·별 상태 */
+  function onRoute(){
+    const id=curId();document.body.classList.toggle('qa-book',!!id);
+    if(id&&bookOf(id)){recents=[id,...recents.filter(x=>x!==id)].slice(0,12);set('qa_recent',recents)}
+    syncStar();barState();hh();
+    const on=document.querySelector('.chips .chip.on');         // 선택한 단원이 목록 한가운데 보이게
+    if(on){const c=on.parentElement;if(c.scrollHeight>c.clientHeight+4)c.scrollTop=on.offsetTop-c.clientHeight/2;else if(c.scrollWidth>c.clientWidth+4)c.scrollLeft=on.offsetLeft-c.clientWidth/2}
+  }
+  addEventListener('hashchange',onRoute);
+  const _book=book;book=function(id,sel){_book(id,sel);onRoute()};
+
+  /* 스와이프로 단원 이동(터치 화면), 키보드 ← → , / 로 검색 */
+  let sx=0,sy=0,st=0,ok=false;
+  const unitMove=d=>{const [id,sel]=location.hash.slice(1).split('/');if(!id||sel==='all')return false;const b=bookOf(id);if(!b)return false;const n=(sel===undefined?0:+sel)+d;if(n<0||n>=b.units.length)return false;location.hash=id+'/'+n;return true};
+  document.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();ok=!e.target.closest('.chips,.qaJump,#lb,input,.mat,table')&&e.touches.length===1},{passive:true});
+  document.addEventListener('touchend',e=>{if(!ok||!curId())return;const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)>80&&Math.abs(dy)<45&&Date.now()-st<600){if(unitMove(dx<0?1:-1))toast(dx<0?'다음 단원':'이전 단원')}},{passive:true});
+  document.addEventListener('keydown',e=>{
+    if(/INPUT|TEXTAREA/.test((e.target||{}).tagName||''))return;
+    if(e.key==='/'){e.preventDefault();if(curId())goHome();setTimeout(()=>$('q').focus(),50)}
+    else if(e.key==='ArrowRight')unitMove(1);else if(e.key==='ArrowLeft')unitMove(-1)});
+
+  /* 앱 설치(안드로이드·PC 크롬) / 아이폰 안내 */
+  let dip=null;
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('qaInst').hidden=false});
+  $('qaInst').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(x){}dip=null;$('qaInst').hidden=true};
+  addEventListener('appinstalled',()=>{$('qaInst').hidden=true});
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone&&!get('qa_ios',0)){
+    const d=document.createElement('div');d.id='qaIos';d.innerHTML='아이폰·아이패드에서는 사파리 <b>공유(□↑)</b> → <b>홈 화면에 추가</b>를 누르면 앱처럼 쓸 수 있어요.<br><button>알겠어요</button>';
+    d.querySelector('button').onclick=()=>{set('qa_ios',1);d.remove()};document.body.appendChild(d)}
+
+  /* 서비스 워커: 껍데기를 기기에 저장해 오프라인에서도 열림 */
+  if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('quick-sw.js',{scope:'./quick.html'}).catch(()=>{})}
+
+  onRoute();
+  if(!curId())decorateHome();            // 첫 화면(데이터가 오기 전)도 한 번 정리
 })();
 
 </script></body></html>
