@@ -50,6 +50,7 @@ main{padding:14px 16px 60px;max-width:1900px;margin:0 auto}
 .back:hover{filter:brightness(1.12)}
 .back[hidden]{display:none}
 .fab{position:fixed;right:18px;bottom:18px;z-index:6;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.mat{display:inline-block;vertical-align:middle;margin:0 3px;padding:0 3px;border-left:2px solid currentColor;border-right:2px solid currentColor;border-radius:7px}.mat table{border-collapse:collapse;font-size:.95em}.mat td{padding:1px 7px;text-align:center;white-space:nowrap}
 .sq{white-space:nowrap}.sq>span{border-top:1px solid currentColor;padding:0 1px}
 sup,sub{font-size:.7em;line-height:0}
 .note{color:var(--sub);font-size:13px;margin:6px 0}
@@ -68,6 +69,7 @@ function rm(s){
   while(i<s.length){
     if(s.startsWith('\\frac',i)){let [a,j]=grp(s,i+5);let [b,k]=grp(s,j);o+='<span class="frac"><span>'+rm(a)+'</span><span>'+rm(b)+'</span></span>';i=k;}
     else if(s.startsWith('\\ov',i)){let [a,j]=grp(s,i+3);o+='<span class="ov">'+rm(a)+'</span>';i=j;}
+    else if(s.startsWith('\\mat',i)){let [a,j]=grp(s,i+4);o+='<span class="mat"><table>'+a.split(';').map(r=>'<tr>'+r.split(',').map(c=>'<td>'+rm(c.trim())+'</td>').join('')+'</tr>').join('')+'</table></span>';i=j;}
     else if(s.startsWith('\\lr',i)){let [a,j]=grp(s,i+3);o+='<span class="lr">'+rm(a)+'</span>';i=j;}
     else if(s.startsWith('\\ar',i)){let [a,j]=grp(s,i+3);o+='<span class="ar">'+rm(a)+'</span>';i=j;}
     else if(s.startsWith('\\sqrt',i)){let [a,j]=grp(s,i+5);o+='<span class="sq">√<span>'+rm(a)+'</span></span>';i=j;}
