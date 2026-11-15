@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>빠른정답 모음</title><link rel="manifest" href="quick.webmanifest"><link rel="apple-touch-icon" href="quick-icon-192.png"><meta name="theme-color" content="#8e1a7a">
+<style>
+:root{--bg:#f6f4f0;--card:#fff;--ink:#1d1b1a;--sub:#6b655f;--line:#e2ddd5;--pt:#8e1a7a;--chip:#efe9f3}
+@media (prefers-color-scheme:dark){:root{--bg:#171515;--card:#221f1f;--ink:#efe9e4;--sub:#a79f98;--line:#3a3535;--chip:#2e2433}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;font-size:15px}
+a{color:inherit;text-decoration:none}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;color:var(--pt);cursor:pointer}
+header .crumb{color:var(--sub);font-size:14px}
+header input{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 10px;border-radius:8px;font-size:14px;min-width:200px}
+main{padding:14px 16px 60px;max-width:1900px;margin:0 auto}
+.ser{margin:18px 0 6px;font-size:16px;font-weight:700;border-left:5px solid var(--pt);padding-left:9px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;display:block}
+.card:hover{border-color:var(--pt)}
+.card b{display:block;font-size:15px}.card small{color:var(--sub)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.chip{background:var(--chip);border-radius:16px;padding:5px 12px;font-size:14px;cursor:pointer;border:1px solid transparent}
+.chip.on{border-color:var(--pt);font-weight:700}
+.unit{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 16px;padding:10px 14px 14px}
+.unit>h2{font-size:17px;margin:2px 0 10px;color:var(--pt)}
+.srclk{font-size:12px;font-weight:400;color:var(--sub);margin-left:12px}
+.srclk a{color:var(--sub);text-decoration:underline;margin:0 2px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px 22px;align-items:start}
+.step img.band{height:40px;max-width:100%;display:block;margin:0 0 6px}
+.nolab{height:6px}
+.row{display:flex;gap:8px;padding:2px 0;border-bottom:1px dotted var(--line);line-height:1.45;min-height:23px}
+.row .no{flex:0 0 34px;text-align:right;font-weight:700;color:var(--sub);font-variant-numeric:tabular-nums}
+.row .ans{flex:1;font-family:"Cambria Math","STIX Two Text","Times New Roman","Batang",serif;font-size:16px;overflow-wrap:anywhere}
+.row img.fig{display:block;max-height:150px;max-width:100%;margin-top:3px;background:#fff;border:1px solid var(--line);border-radius:4px}
+.row img.fig{cursor:zoom-in}
+.row img.fig.big{max-height:none;width:100%;max-width:560px}
+.row img.fig.crop{max-height:none;max-width:100%;height:auto;border:0;background:transparent;margin-top:0}
+#lb{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;overflow:auto;cursor:zoom-out}
+#lb[hidden]{display:none}
+#lb img{width:min(96vw,900px);height:auto;max-height:none;background:#fff;border-radius:6px;margin:auto}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.9em;line-height:1.15;margin:0 2px}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 2px}
+.ov{border-top:1px solid currentColor;padding:0 1px}
+.dt{position:relative;display:inline-block}
+.dt::before{content:"";position:absolute;top:.05em;left:50%;width:.14em;height:.14em;border-radius:50%;background:currentColor;transform:translateX(-50%)}
+.lr,.ar{position:relative;display:inline-block;padding:0 1px;margin-top:.5em}
+.lr::before,.ar::before{position:absolute;left:0;right:0;top:-.72em;height:.6em;line-height:.6em;font-size:.82em;overflow:hidden;white-space:nowrap;text-align:center;font-family:Arial,sans-serif}
+.lr::before{content:"\2194"}
+.ar::before{content:"\2192"}
+.back{border:1px solid var(--pt);background:var(--pt);color:#fff;padding:6px 14px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.back:hover{filter:brightness(1.12)}
+.back[hidden]{display:none}
+.fab{position:fixed;right:18px;bottom:18px;z-index:6;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.sq{white-space:nowrap}.sq>span{border-top:1px solid currentColor;padding:0 1px}
+sup,sub{font-size:.7em;line-height:0}
+.note{color:var(--sub);font-size:13px;margin:6px 0}
+@media print{header{display:none}.unit{break-inside:avoid}}
+</style></head><body>
+<header><button class="back" id="back" hidden>← 교재 목록</button><h1 id="home">빠른정답 모음</h1><small style="font-size:11px;opacity:.6;margin-left:6px;white-space:nowrap">클라우드판</small><span class="crumb" id="crumb"></span><span style="flex:1"></span><input id="q" placeholder="교재 검색 (예: 중2-1, 대수, 코어)"></header>
+<main id="app"></main>
+<button class="back fab" id="fab" hidden>← 교재 목록</button>
+<script>
+const BOOKS=[];const PEND=[];const IMGMEM={};const IM=p=>IMGMEM[p]||"";
+const app=document.getElementById('app'),crumb=document.getElementById('crumb'),q=document.getElementById('q');
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function grp(s,i){let d=0,j=i;for(;j<s.length;j++){if(s[j]=='{')d++;else if(s[j]=='}'){d--;if(!d)break;}}return [s.slice(i+1,j),j+1];}
+function rm(s){
+  let o='',i=0;
+  while(i<s.length){
+    if(s.startsWith('\\frac',i)){let [a,j]=grp(s,i+5);let [b,k]=grp(s,j);o+='<span class="frac"><span>'+rm(a)+'</span><span>'+rm(b)+'</span></span>';i=k;}
+    else if(s.startsWith('\\ov',i)){let [a,j]=grp(s,i+3);o+='<span class="ov">'+rm(a)+'</span>';i=j;}
+    else if(s.startsWith('\\lr',i)){let [a,j]=grp(s,i+3);o+='<span class="lr">'+rm(a)+'</span>';i=j;}
+    else if(s.startsWith('\\ar',i)){let [a,j]=grp(s,i+3);o+='<span class="ar">'+rm(a)+'</span>';i=j;}
+    else if(s.startsWith('\\sqrt',i)){let [a,j]=grp(s,i+5);o+='<span class="sq">√<span>'+rm(a)+'</span></span>';i=j;}
+    else if(s[i]=='^'&&s[i+1]=='{'){let [a,j]=grp(s,i+1);o+='<sup>'+rm(a)+'</sup>';i=j;}
+    else if(s[i]=='_'&&s[i+1]=='{'){let [a,j]=grp(s,i+1);o+='<sub>'+rm(a)+'</sub>';i=j;}
+    else if(s[i]=='\n'){o+='<br>';i++;}
+    else if(s[i+1]==='̇'){o+='<span class="dt">'+esc(s[i])+'</span>';i+=2;}
+    else {o+=esc(s[i]);i++;}
+  }return o;}
+const label=b=>b.series+' '+b.key;
+function home(f){
+  crumb.textContent='';let h='';const by={};
+  BOOKS.filter(b=>!f||(label(b)).toLowerCase().includes(f.toLowerCase())).forEach(b=>{const sk=(b.series==='어드밴스 중등'&&b.key.includes('더블유'))?'어드밴스 중등 · 더블유':b.series;(by[sk]=by[sk]||[]).push(b);});
+  const order=['코어 고등 본책','코어 고등 LEVEL UP','챌린지 고등 본책','챌린지 고등 LEVEL UP','케이블 코어','케이블 챌린지','챌린지 중등','어드밴스 중등','어드밴스 중등 · 더블유','에이급','블랙라벨','실력정석','내신 Perfect','원리해설','경시교재','CMS 제작교재'];
+  const ks=Object.keys(by).sort((a,b)=>(order.indexOf(a)<0?99:order.indexOf(a))-(order.indexOf(b)<0?99:order.indexOf(b)));
+  for(const k of ks){h+='<div class="ser">'+esc(k)+'</div><div class="cards">';
+    by[k].sort((a,b)=>JSON.stringify(a.sort)<JSON.stringify(b.sort)?-1:1).forEach(b=>{h+='<a class="card" href="#'+b.id+'"><b>'+esc(b.key)+'</b><small>'+b.units.length+'개 단원 · '+b.n+'문항</small></a>';});h+='</div>';}
+  if(!f&&PEND.length) h+='<div class="ser">아직 글자로 못 바꾼 책 (그림판에서 보기)</div><p class="note">'+PEND.map(esc).join(' · ')+' — <a href="빠른정답_이미지판.html" style="text-decoration:underline">이미지판 열기</a></p>';
+  app.innerHTML=h||'<p class="note">검색 결과가 없습니다.</p>';}
+function unitHtml(u,ui){
+  const bk=BOOKS.find(x=>x.units.includes(u));
+  let src='';
+  const pf='';
+  if(pf){const base=encodeURI('file:///'+pf.replace(/\\/g,'/'));
+    src='<span class="srclk">원본 PDF '+((u.p&&u.p.length)?u.p.map(p=>'<a href="'+base+'#page='+p+'" target="_blank">'+p+'쪽</a>').join(' · '):'<a href="'+base+'" target="_blank">열기</a>')+'</span>';}
+  let h='<section class="unit" id="u'+ui+'"><h2>'+esc(u.t.join(' › '))+src+'</h2><div class="steps">';
+  for(const st of u.s){h+='<div class="step">'+(st.i?'<img class="band" src="'+IM(st.i)+'" alt="">':'<div class="nolab"></div>');
+    for(const r of st.r){h+='<div class="row"><span class="no">'+r[0]+'</span><span class="ans">'+rm(r[1])+(r.length>2?r.slice(2).map(f=>'<img class="fig'+(f[3]?' crop':(f[2]>150?' big':''))+'" src="'+IM(f[0])+'"'+(f[3]?' style="width:'+Math.round(f[1]*1.5)+'px"':'')+' alt="">').join(''):'')+'</span></div>';}
+    h+='</div>';}
+  return h+'</div></section>';}
+function book(id,sel){
+  const b=BOOKS.find(x=>x.id==id);if(!b){location.hash='';return;}
+  crumb.textContent='› '+label(b);
+  const all=(sel==='all');
+  let h='<div class="chips">'+b.units.map((u,i)=>'<span class="chip'+((!all&&sel==i)?' on':'')+'" data-i="'+i+'">'+esc(u.t.map(x=>x.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+\s*/,'')).slice(-1)[0]||u.t.join(' '))+'</span>').join('')+'<span class="chip'+(all?' on':'')+'" data-i="all">전체 이어서 보기</span></div>';
+  if(all) h+=b.units.map(unitHtml).join('');
+  else h+=unitHtml(b.units[sel],sel);
+  app.innerHTML=h;
+  app.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{location.hash=id+'/'+c.dataset.i;});}
+let homeY=0,onHome=true,lastId=null;
+const backBtns=[document.getElementById('back'),document.getElementById('fab')];
+function goHome(){location.hash='';}
+backBtns.forEach(b=>b.onclick=goHome);
+function route(){
+  const [id,sel]=location.hash.slice(1).split('/');
+  if(!id){
+    home(q.value);backBtns.forEach(b=>b.hidden=true);
+    if(!onHome){window.scrollTo(0,homeY);}
+    onHome=true;lastId=null;return;}
+  const b=BOOKS.find(x=>x.id==id);
+  if(onHome)homeY=window.scrollY;
+  onHome=false;backBtns.forEach(x=>x.hidden=false);
+  book(id,sel===undefined?(b&&b.series.includes('LEVEL UP')?'all':0):(sel==='all'?'all':+sel));
+  if(lastId!==id)window.scrollTo(0,0);else window.scrollTo(0,0);
+  lastId=id;}
+const lb=document.createElement('div');lb.id='lb';lb.hidden=true;lb.innerHTML='<img alt="">';document.body.appendChild(lb);
+lb.onclick=()=>{lb.hidden=true;};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')lb.hidden=true;});
+app.addEventListener('click',e=>{const t=e.target;if(t.tagName==='IMG'&&t.classList.contains('fig')){lb.firstChild.src=t.src;lb.hidden=false;}});
+window.addEventListener('hashchange',route);
+q.addEventListener('input',()=>{if(location.hash)location.hash='';else home(q.value);});
+document.getElementById('home').onclick=goHome;
+route();
+</script><script src="firebase-config.js"></script><script>
+/* 빠른정답 클라우드 로더: Firebase(banmgmt 컬렉션의 q_* 문서)에서 책 데이터를 받아 기기(IndexedDB)에 저장해 둔다.
+   사용량 최소화: ① 접속 때 q_meta 문서 1개만 읽어 버전 비교 ② 바뀐 조각 문서만 다시 받음 ③ 그림은 책을 열 때만, 한 번 받으면 기기에 저장 ④ 실시간 리스너 없음 */
+(function(){
+  const NS='banmgmt', MP='q_meta';
+  const FB_CDN='https://www.gstatic.com/firebasejs/10.12.2/';
+  const CHECK_GAP=30*60*1000;           // 화면을 다시 켰을 때 업데이트 확인 최소 간격(30분)
+  let db=null,auth=null,idb=null,META=null,lastCheck=0,syncing=false;
+  const loadedImg=new Set();            // 이번 접속에서 이미 메모리에 올린 그림 문서
+  const $=id=>document.getElementById(id);
+
+  /* ---------- 화면 조각 ---------- */
+  function overlay(html){let o=$('qOv');if(!o){o=document.createElement('div');o.id='qOv';o.style.cssText='position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;padding:16px';document.body.appendChild(o)}o.innerHTML=html;o.style.display=html?'flex':'none'}
+  const card=h=>'<div class="card" style="max-width:340px;text-align:center;cursor:default"><h2 style="margin-top:0">빠른정답 모음</h2>'+h+'</div>';
+  function status(t,color){let s=$('qSt');if(!s){s=document.createElement('div');s.id='qSt';s.style.cssText='position:fixed;left:10px;bottom:10px;z-index:7;font-size:11px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:3px 10px;opacity:.85;cursor:pointer';s.title='눌러서 업데이트 확인';s.onclick=()=>sync(true);document.body.appendChild(s)}s.textContent=t;s.style.color=color||'var(--sub)'}
+  function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('load '+src));document.head.appendChild(s)})}
+
+  /* ---------- 기기 저장소(IndexedDB, 막혀 있으면 메모리만) ---------- */
+  const mem={};
+  function idbOpen(){return new Promise(res=>{try{const r=indexedDB.open('quickans',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null)}catch(e){res(null)}})}
+  const kvGet=k=>new Promise(res=>{if(!idb)return res(mem[k]);try{const q=idb.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(mem[k])}catch(e){res(mem[k])}});
+  const kvSet=(k,v)=>new Promise(res=>{mem[k]=v;if(!idb)return res();try{const t=idb.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>res();t.onabort=()=>res()}catch(e){res()}});
+  const kvDel=k=>new Promise(res=>{delete mem[k];if(!idb)return res();try{const t=idb.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=()=>res();t.onerror=()=>res()}catch(e){res()}});
+
+  /* ---------- 책 데이터 ---------- */
+  async function rebuildBooks(){
+    const names=Object.keys(META.texts).sort(),all=[];
+    for(const n of names){const c=await kvGet('d:'+n);if(c&&c.data)all.push(...JSON.parse(c.data))}
+    BOOKS.splice(0,BOOKS.length,...all);
+  }
+  async function fetchDoc(name,hash,key){
+    const d=await db.collection(NS).doc(name).get();
+    if(!d.exists)throw new Error('missing '+name);
+    const rec={hash,data:d.data().data};await kvSet(key,rec);return rec;
+  }
+  function rerender(){const y=window.scrollY;try{route()}catch(e){}window.scrollTo(0,y)}
+  async function sync(manual){
+    if(syncing||!db)return;syncing=true;
+    try{
+      status('확인 중…');
+      const snap=await db.collection(NS).doc(MP).get({source:'server'});
+      lastCheck=Date.now();
+      if(!snap.exists){if(!META)overlay(card('<p class="sub">아직 올라간 데이터가 없어요.</p>'));status('데이터 없음','#dc2626');return}
+      const m=snap.data();
+      if(META&&META.ver===m.ver){status('최신 · '+m.ver,'#16a34a');return}
+      let got=0;
+      for(const n of Object.keys(m.texts)){const c=await kvGet('d:'+n);if(!c||c.hash!==m.texts[n]){await fetchDoc(n,m.texts[n],'d:'+n);got++}}
+      // 그림 문서는 바뀐 것만 기기 저장본을 지운다(다음에 책을 열 때 새로 받음)
+      for(const n of Object.keys(m.imgs||{})){const c=await kvGet('d:'+n);if(c&&c.hash!==m.imgs[n]){await kvDel('d:'+n);loadedImg.delete(n)}}
+      if(META){for(const n of Object.keys(META.texts)){if(!(n in m.texts))await kvDel('d:'+n)}for(const n of Object.keys(META.imgs||{})){if(!(n in (m.imgs||{}))){await kvDel('d:'+n);loadedImg.delete(n)}}}
+      META=m;await kvSet('meta',m);await rebuildBooks();
+      overlay('');rerender();status('최신 · '+m.ver+(got?' (업데이트 '+got+'조각)':''),'#16a34a');
+      if(manual&&!got)status('최신 · '+m.ver,'#16a34a');
+    }catch(e){
+      if(e&&e.code==='permission-denied'){await auth.signOut();login('이 계정은 사용할 수 없어요. 허용한 구글 계정으로 로그인해 주세요.')}
+      else{if(!META)overlay(card('<p class="weak" style="color:#dc2626">서버에 연결하지 못했어요. 인터넷을 확인해 주세요.</p><button class="back" onclick="location.reload()">다시 시도</button>'));status('오프라인(저장본 사용)','#d97706')}
+    }finally{syncing=false}
+  }
+
+  /* ---------- 그림(책을 열 때만) ---------- */
+  async function loadImgs(id){
+    if(!META||!META.books||!META.books[id])return;
+    let added=0;
+    for(const n of META.books[id]){
+      if(loadedImg.has(n))continue;
+      try{
+        let c=await kvGet('d:'+n);
+        if(!c||c.hash!==META.imgs[n])c=await fetchDoc(n,META.imgs[n],'d:'+n);
+        Object.assign(IMGMEM,JSON.parse(c.data));loadedImg.add(n);added++;
+      }catch(e){}
+    }
+    if(added&&location.hash.slice(1).split('/')[0]===id)rerender();
+  }
+  const _book=book;
+  book=function(id,sel){_book(id,sel);loadImgs(id)};
+
+  /* ---------- 로그인 ---------- */
+  function login(msg){overlay(card('<p class="sub">선생님 구글 계정으로 로그인해 주세요.</p><button class="back" id="qLogin">Google로 로그인</button>'+(msg?'<p style="font-size:13px;color:#dc2626">'+msg+'</p>':'')));$('qLogin').onclick=async()=>{try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(e){login('로그인하지 못했어요 ('+(e.code||e.message)+')')}}}
+
+  async function start(u){
+    const cm=await kvGet('meta');
+    if(cm){META=cm;try{await rebuildBooks();overlay('');route()}catch(e){META=null}}
+    await sync(false);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastCheck>CHECK_GAP)sync(false)});
+    if(/[?&]admin\b/.test(location.search))adminPanel(u);
+  }
+
+  /* ---------- 관리(업로드): 주소 뒤에 ?admin 을 붙여 열었을 때만 ---------- */
+  function adminPanel(u){
+    const box=document.createElement('div');box.className='card';box.style.cssText='position:fixed;right:10px;bottom:46px;z-index:50;max-width:320px;cursor:default;font-size:12px';
+    box.innerHTML='<b>관리 · 데이터 올리기</b><br><input type="file" id="qPack" accept=".json"><div id="qPackMsg" style="margin-top:4px;color:var(--sub)"></div>';
+    document.body.appendChild(box);
+    $('qPack').onchange=e=>{if(e.target.files[0])upload(e.target.files[0])};
+  }
+  async function upload(file){
+    const msg=t=>{$('qPackMsg').textContent=t;window.__upl=t};
+    try{
+      msg('읽는 중…');
+      const pack=JSON.parse(await file.text());
+      const cur=(await db.collection(NS).doc(MP).get({source:'server'}));const cm=cur.exists?cur.data():{texts:{},imgs:{}};
+      if(!pack.meta){
+        // 조각 파일(pack_NN.json): 문서만 올린다. 이미 같은 해시로 올라가 있으면 건너뜀
+        let w=0,s=0;
+        for(const g of ['texts','imgs']){for(const [n,v] of Object.entries(pack[g]||{})){
+          if((cm[g]||{})[n]===v.hash){s++;continue}
+          await db.collection(NS).doc(n).set({data:v.data,hash:v.hash});w++;msg('올리는 중… '+w+'개')}}
+        msg('조각 완료: 올림 '+w+' · 그대로 '+s);
+      }else{
+        // 마지막 pack_meta.json: 버전 확정 + 쓰지 않는 문서 삭제
+        let d=0;
+        for(const g of ['texts','imgs']){for(const n of Object.keys(cm[g]||{})){if(!(n in pack[g])){await db.collection(NS).doc(n).delete();d++}}}
+        const meta={ver:pack.ver,texts:pack.texts,imgs:pack.imgs,books:pack.books,updatedAt:Date.now()};
+        await db.collection(NS).doc(MP).set(meta);
+        msg('완료: 버전 '+pack.ver+' · 삭제 '+d);
+        await sync(true);
+      }
+    }catch(e){msg('실패: '+(e.message||e))}
+  }
+
+  /* ---------- 시작 ---------- */
+  (async function boot(){
+    overlay(card('<p class="sub">불러오는 중…</p>'));
+    idb=await idbOpen();
+    try{
+      if(!window.firebase){for(const f of ['firebase-app-compat.js','firebase-auth-compat.js','firebase-firestore-compat.js'])await loadScript(FB_CDN+f)}
+      firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();auth=firebase.auth();
+      auth.onAuthStateChanged(u=>{if(u)start(u);else login()});
+    }catch(e){
+      const cm=await kvGet('meta');
+      if(cm){META=cm;await rebuildBooks();overlay('');route();status('오프라인(저장본 사용)','#d97706')}
+      else overlay(card('<p style="color:#dc2626">서버에 연결하지 못했어요. 인터넷을 확인해 주세요.</p><button class="back" onclick="location.reload()">다시 시도</button>'));
+    }
+  })();
+})();
+
+</script></body></html>
