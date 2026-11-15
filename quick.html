@@ -115,6 +115,7 @@ main{padding:14px calc(14px + var(--sar)) calc(var(--bar) + var(--sab) + 40px) c
   header{flex-wrap:wrap;row-gap:6px}
   header input#q{flex:1 1 100%;order:20;font-size:16px}
   body.qa-book header input#q{display:none}
+  #qaTrash{display:none}
   body.qa-book header{flex-wrap:nowrap}
   body.qa-book header h1{display:none}
   body.qa-book #qaTools{flex:0 0 auto}
@@ -141,6 +142,34 @@ main{padding:14px calc(14px + var(--sar)) calc(var(--bar) + var(--sab) + 40px) c
   body.qa-book .unit{grid-column:2}
   body.qa-book .steps{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
 }
+/* 카드 ⋯ 버튼, 메뉴 시트, 이름 변경 창, 휴지통 */
+.card .more{position:absolute;bottom:6px;right:6px;width:34px;height:28px;border:0;background:transparent;color:var(--sub);font-size:20px;line-height:1;cursor:pointer;border-radius:8px;letter-spacing:1px}
+.card .more:hover{background:var(--chip)}
+#qaSheet{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center}
+#qaSheet .qaShade{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:qaIn .15s ease both}
+#qaSheet .qaPanel{position:relative;width:min(440px,100%);background:var(--card);border-radius:20px 20px 0 0;padding:16px 16px calc(14px + var(--sab));box-shadow:0 -8px 30px rgba(0,0,0,.25);animation:qaUp .2s ease both}
+@keyframes qaUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+#qaSheet h3{margin:0 0 10px;font-size:16px;line-height:1.35}
+#qaSheet .qaPanel>button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);font-size:16px;padding:14px 8px;border-top:1px solid var(--line);cursor:pointer;border-radius:8px}
+#qaSheet .qaPanel>button:active{background:var(--chip)}
+#qaSheet .danger,.danger{color:#d12f2f!important}
+.qaHint{margin:0 0 10px;color:var(--sub);font-size:13px}
+#qaRn{width:100%;font-size:17px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-family:inherit}
+.qaRow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.qaRow button{flex:1;min-width:84px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 10px;font-size:15px;cursor:pointer}
+.qaRow button.pri,.trashItem button.pri{background:var(--pt);color:#fff;border-color:var(--pt)}
+@media (min-width:700px){#qaSheet{align-items:center}#qaSheet .qaPanel{border-radius:20px}}
+#qaTn{display:none;font-style:normal;font-size:10px;background:#d12f2f;color:#fff;border-radius:9px;min-width:16px;height:16px;line-height:16px;text-align:center;margin-left:3px;vertical-align:top}
+body.qa-trash #app{display:block!important}
+.trashHead{display:flex;flex-direction:column;gap:3px;margin:6px 0 14px}.trashHead b{font-size:19px}.trashHead span{color:var(--sub);font-size:13px}
+.trashList{display:flex;flex-direction:column;gap:10px}
+.trashItem{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;flex-wrap:wrap}
+.trashItem .ti{flex:1 1 220px;min-width:0}.trashItem b{font-size:15px}.trashItem small{display:block;color:var(--sub);margin-top:3px;line-height:1.5}
+.trashItem em{font-style:normal;color:#d97706}
+.trashItem button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;padding:8px 14px;font-size:14px;cursor:pointer}
+.trashItem button.danger{border-color:#e6b5b5}
+button.wide{display:block;width:100%;margin-top:16px;border:1px solid #e6b5b5;background:var(--card);border-radius:14px;padding:13px;font-size:15px;cursor:pointer}
+body.qa-trash .qa-bk{display:none!important}
 /* 설치 안내(아이폰) */
 #qaIos{position:fixed;left:12px;right:12px;bottom:calc(var(--bar) + var(--sab) + 12px);z-index:40;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.2);font-size:14px;line-height:1.5}
 #qaIos button{margin-top:8px;border:0;background:var(--pt);color:#fff;border-radius:16px;padding:6px 14px}
@@ -232,6 +261,32 @@ route();
   const CHECK_GAP=30*60*1000;           // 화면을 다시 켰을 때 업데이트 확인 최소 간격(30분)
   let db=null,auth=null,idb=null,META=null,lastCheck=0,syncing=false;
   const loadedImg=new Set();            // 이번 접속에서 이미 메모리에 올린 그림 문서
+  /* 사용자 설정(이름 변경·휴지통): banmgmt/q_user 문서 하나에 저장되어 폰·PC가 공유 */
+  const KEEP=30*86400000;               // 휴지통 보관 30일
+  const ALL=[];                         // 클라우드에 있는 모든 책
+  let USER={rn:{},tr:{},pg:[]};         // rn: 바꾼 이름, tr: 휴지통(넣은 시각), pg: 자동·영구 삭제된 책
+  const FV=()=>firebase.firestore.FieldValue;
+  const userRef=()=>db.collection(NS).doc('q_user');
+  async function userWrite(patch){try{await userRef().set(patch,{merge:true});return true}catch(e){return false}}
+  function applyUser(){
+    const now=Date.now(),exp=Object.keys(USER.tr||{}).filter(id=>now-USER.tr[id]>KEEP);
+    if(exp.length){exp.forEach(id=>{delete USER.tr[id];if(!USER.pg.includes(id))USER.pg.push(id)});
+      if(db){const p={pg:FV().arrayUnion(...exp),tr:{}};exp.forEach(id=>p.tr[id]=FV().delete());userWrite(p)}}
+    const hide=new Set([...Object.keys(USER.tr||{}),...(USER.pg||[])]);
+    for(const b of ALL){if(b._k0===undefined)b._k0=b.key;b.key=(USER.rn&&USER.rn[b.id])||b._k0}
+    BOOKS.splice(0,BOOKS.length,...ALL.filter(b=>!hide.has(b.id)));
+    kvSet('user',USER);
+  }
+  window.QA={
+    all:()=>ALL,user:()=>USER,keepDays:30,
+    async rename(id,name){name=(name||'').trim();const b=ALL.find(x=>x.id==id);if(!b)return false;
+      if(!name||name===b._k0){delete USER.rn[id];applyUser();rerender();return userWrite({rn:{[id]:FV().delete()}})}
+      USER.rn[id]=name;applyUser();rerender();return userWrite({rn:{[id]:name}})},
+    async trash(id){USER.tr[id]=Date.now();applyUser();rerender();return userWrite({tr:{[id]:USER.tr[id]}})},
+    async restore(id){delete USER.tr[id];applyUser();rerender();return userWrite({tr:{[id]:FV().delete()}})},
+    async purge(ids){ids=[].concat(ids);ids.forEach(id=>{delete USER.tr[id];if(!USER.pg.includes(id))USER.pg.push(id)});applyUser();rerender();
+      const p={pg:FV().arrayUnion(...ids),tr:{}};ids.forEach(id=>p.tr[id]=FV().delete());return userWrite(p)}
+  };
   const $=id=>document.getElementById(id);
 
   /* ---------- 화면 조각 ---------- */
@@ -251,7 +306,7 @@ route();
   async function rebuildBooks(){
     const names=Object.keys(META.texts).sort(),all=[];
     for(const n of names){const c=await kvGet('d:'+n);if(c&&c.data)all.push(...JSON.parse(c.data))}
-    BOOKS.splice(0,BOOKS.length,...all);
+    ALL.splice(0,ALL.length,...all);applyUser();
   }
   async function fetchDoc(name,hash,key){
     const d=await db.collection(NS).doc(name).get();
@@ -263,8 +318,9 @@ route();
     if(syncing||!db)return;syncing=true;
     try{
       status('확인 중…');
-      const snap=await db.collection(NS).doc(MP).get({source:'server'});
+      const [snap,us]=await Promise.all([db.collection(NS).doc(MP).get({source:'server'}),userRef().get({source:'server'})]);
       lastCheck=Date.now();
+      if(us.exists){const u=Object.assign({rn:{},tr:{},pg:[]},us.data());if(JSON.stringify(u)!==JSON.stringify(USER)){USER=u;if(ALL.length){applyUser();rerender()}}}
       if(!snap.exists){if(!META)overlay(card('<p class="sub">아직 올라간 데이터가 없어요.</p>'));status('데이터 없음','#dc2626');return}
       const m=snap.data();
       if(META&&META.ver===m.ver){status('최신 · '+m.ver,'#16a34a');return}
@@ -303,6 +359,7 @@ route();
   function login(msg){overlay(card('<p class="sub">선생님 구글 계정으로 로그인해 주세요.</p><button class="back" id="qLogin">Google로 로그인</button>'+(msg?'<p style="font-size:13px;color:#dc2626">'+msg+'</p>':'')));$('qLogin').onclick=async()=>{try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(e){login('로그인하지 못했어요 ('+(e.code||e.message)+')')}}}
 
   async function start(u){
+    const cu=await kvGet('user');if(cu)USER=Object.assign({rn:{},tr:{},pg:[]},cu);
     const cm=await kvGet('meta');
     if(cm){META=cm;try{await rebuildBooks();overlay('');route()}catch(e){META=null}}
     await sync(false);
@@ -359,7 +416,8 @@ route();
 })();
 
 </script><script>
-/* 빠른정답 앱 레이어: 즐겨찾기·최근 본 책·글자 크기·스와이프·하단 탭·설치 안내 (기기 안에만 저장, 서버 사용 없음) */
+/* 빠른정답 앱 레이어: 즐겨찾기·최근 본 책·글자 크기·스와이프·하단 탭·설치 안내·이름 변경·휴지통
+   (즐겨찾기·글자 크기·최근 본 책은 기기 안에만, 이름 변경·휴지통은 loader.js 의 QA 가 클라우드에 저장해 폰·PC 공유) */
 (function(){
   const $=id=>document.getElementById(id);
   const get=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
@@ -368,50 +426,122 @@ route();
   const root=document.documentElement;
   const hdr=document.querySelector('header');
   const curId=()=>location.hash.slice(1).split('/')[0];
+  const inTrash=()=>curId()==='trash';
   const bookOf=id=>BOOKS.find(b=>b.id==id);
-  const isPhone=()=>matchMedia('(max-width:700px)').matches;
+  const DAY=86400000;
+  const pad=n=>String(n).padStart(2,'0');
+  const fmtDate=t=>{const d=new Date(t);return d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate())};
 
   /* 글자 크기 */
   function applyFs(){root.style.setProperty('--fs',fs);set('qa_fs',fs)}
   applyFs();
-  /* 헤더 높이를 CSS 변수로 (고정 탭이 헤더 아래에 붙도록) */
   function hh(){root.style.setProperty('--hh',hdr.offsetHeight+'px')}
   hh();addEventListener('resize',hh);
   if(window.ResizeObserver)new ResizeObserver(hh).observe(hdr);
 
-  /* 헤더 도구: ★ 가− 가+ 설치 */
+  function toast(t){let d=$('qaToast');if(!d){d=document.createElement('div');d.id='qaToast';d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bar) + var(--sab) + 70px);z-index:80;background:#222;color:#fff;border-radius:18px;padding:8px 16px;font-size:14px;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center';document.body.appendChild(d)}
+    d.textContent=t;d.style.opacity=1;clearTimeout(d._t);d._t=setTimeout(()=>d.style.opacity=0,2200)}
+
+  /* 헤더 도구: ★ ⋯ 가− 가+ 🗑 설치 */
   const tools=document.createElement('span');tools.id='qaTools';
-  tools.innerHTML='<button id="qaFav" class="qa-bk" title="즐겨찾기" aria-label="즐겨찾기">☆</button><button id="qaFsM" class="qa-bk" title="글자 작게" aria-label="글자 작게">가-</button><button id="qaFsP" class="qa-bk" title="글자 크게" aria-label="글자 크게">가+</button><button id="qaInst" hidden title="앱으로 설치">앱 설치</button>';
+  tools.innerHTML='<button id="qaFav" class="qa-bk" title="즐겨찾기" aria-label="즐겨찾기">☆</button><button id="qaMore" class="qa-bk" title="이름 변경·휴지통" aria-label="더 보기">⋯</button><button id="qaFsM" class="qa-bk" title="글자 작게" aria-label="글자 작게">가-</button><button id="qaFsP" class="qa-bk" title="글자 크게" aria-label="글자 크게">가+</button><button id="qaTrash" title="휴지통" aria-label="휴지통">🗑<i id="qaTn"></i></button><button id="qaInst" hidden title="앱으로 설치">앱 설치</button>';
   hdr.appendChild(tools);
   $('qaFsM').onclick=()=>{fs=Math.max(.85,+(fs-.1).toFixed(2));applyFs()};
   $('qaFsP').onclick=()=>{fs=Math.min(1.5,+(fs+.1).toFixed(2));applyFs()};
-  $('qaFav').onclick=()=>{const id=curId();if(!id)return;const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs);syncStar()};
-  function syncStar(){const id=curId(),on=favs.includes(id);const b=$('qaFav');b.textContent=on?'★':'☆';b.classList.toggle('on',on)}
+  $('qaFav').onclick=()=>{const id=curId();if(id&&!inTrash()){toggleFav(id);syncStar()}};
+  $('qaMore').onclick=()=>{const id=curId();if(id&&!inTrash())openMenu(id)};
+  $('qaTrash').onclick=()=>{location.hash=inTrash()?'':'trash'};
+  function toggleFav(id){const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs)}
+  function syncStar(){const on=favs.includes(curId());const b=$('qaFav');b.textContent=on?'★':'☆';b.classList.toggle('on',on)}
+  function trashCount(){const u=window.QA?QA.user().tr||{}:{};return Object.keys(u).filter(id=>QA.all().some(b=>b.id==id)).length}
+  function trashBadge(){const n=window.QA?trashCount():0;const i=$('qaTn');i.textContent=n?n:'';i.style.display=n?'inline-block':'none'}
 
   /* 하단 탭 바(폰) */
   const bar=document.createElement('nav');bar.id='qaBar';
-  bar.innerHTML='<button data-a="home"><b>⌂</b>홈</button><button data-a="search"><b>⌕</b>검색</button><button data-a="fav"><b>★</b>즐겨찾기</button><button data-a="sync"><b>↻</b>업데이트</button>';
+  bar.innerHTML='<button data-a="home"><b>⌂</b>홈</button><button data-a="search"><b>⌕</b>검색</button><button data-a="fav"><b>★</b>즐겨찾기</button><button data-a="trash"><b>🗑</b>휴지통</button><button data-a="sync"><b>↻</b>업데이트</button>';
   document.body.appendChild(bar);
   bar.onclick=e=>{const a=e.target.closest('button');if(!a)return;const k=a.dataset.a;
     if(k==='home'){if(curId())goHome();else scrollTo({top:0})}
     else if(k==='search'){if(curId())goHome();setTimeout(()=>{$('q').focus()},60)}
     else if(k==='fav'){if(curId())goHome();setTimeout(()=>{const s=document.querySelector('.qaSec.fav');if(s)s.scrollIntoView({block:'start'});else toast('★로 즐겨찾기를 추가해 보세요')},80)}
+    else if(k==='trash'){location.hash=inTrash()?'':'trash'}
     else if(k==='sync'){const s=$('qSt');if(s)s.click()}};
-  function barState(){bar.querySelector('[data-a=home]').classList.toggle('on',!curId())}
+  function barState(){bar.querySelector('[data-a=home]').classList.toggle('on',!curId());bar.querySelector('[data-a=trash]').classList.toggle('on',inTrash())}
 
-  function toast(t){let d=$('qaToast');if(!d){d=document.createElement('div');d.id='qaToast';d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bar) + var(--sab) + 70px);z-index:60;background:#222;color:#fff;border-radius:18px;padding:8px 16px;font-size:14px;transition:opacity .3s;pointer-events:none';document.body.appendChild(d)}
-    d.textContent=t;d.style.opacity=1;clearTimeout(d._t);d._t=setTimeout(()=>d.style.opacity=0,1800)}
+  /* ===== 책 메뉴(이름 변경·즐겨찾기·휴지통) ===== */
+  function closeSheet(){const s=$('qaSheet');if(s)s.remove()}
+  function openMenu(id){
+    const b=bookOf(id);if(!b)return;closeSheet();
+    const el=document.createElement('div');el.id='qaSheet';
+    el.innerHTML='<div class="qaShade"></div><div class="qaPanel"><h3>'+esc(label(b))+'</h3>'
+      +'<button data-a="rename">✏️ 이름 변경</button>'
+      +'<button data-a="fav">'+(favs.includes(id)?'★ 즐겨찾기 해제':'☆ 즐겨찾기 추가')+'</button>'
+      +'<button data-a="trash" class="danger">🗑 휴지통으로 이동</button><button data-a="close">닫기</button></div>';
+    el.onclick=e=>{
+      if(e.target.classList.contains('qaShade')){closeSheet();return}
+      const a=e.target.closest('button');if(!a)return;const k=a.dataset.a;
+      if(k==='close')closeSheet();
+      else if(k==='fav'){toggleFav(id);closeSheet();syncStar();if(!curId())decorateHomeRefresh()}
+      else if(k==='rename'){closeSheet();renameDialog(id)}
+      else if(k==='trash'){closeSheet();doTrash(id)}};
+    document.body.appendChild(el);
+  }
+  async function doTrash(id){
+    const b=bookOf(id);if(!b)return;
+    const wasBook=!!curId();
+    const ok=await QA.trash(id);
+    favs=favs.filter(x=>x!==id);set('qa_fav',favs);
+    toast(ok?'휴지통으로 옮겼어요 · 30일 뒤 자동 삭제':'휴지통으로 옮겼어요(연결이 되면 다른 기기에도 반영돼요)');
+    if(wasBook&&!inTrash())goHome();
+  }
+  function renameDialog(id){
+    const b=bookOf(id);if(!b)return;
+    const renamed=!!(QA.user().rn||{})[id];
+    const d=document.createElement('div');d.id='qaSheet';
+    d.innerHTML='<div class="qaShade"></div><div class="qaPanel"><h3>이름 변경</h3><p class="qaHint">'+esc(b.series)+' · 책 이름만 바꿔요. 폰·PC에 똑같이 적용돼요.</p><input id="qaRn" type="text" maxlength="60" value="'+esc(b.key).replace(/"/g,'&quot;')+'"><div class="qaRow"><button data-a="save" class="pri">저장</button>'+(renamed?'<button data-a="reset">원래 이름으로</button>':'')+'<button data-a="close">취소</button></div></div>';
+    d.onclick=async e=>{
+      if(e.target.classList.contains('qaShade')){d.remove();return}
+      const a=e.target.closest('button');if(!a)return;const k=a.dataset.a;
+      if(k==='close')d.remove();
+      else if(k==='save'){const v=$('qaRn').value.trim();if(!v){toast('이름을 입력해 주세요');return}d.remove();const ok=await QA.rename(id,v);toast(ok?'이름을 바꿨어요':'이름을 바꿨어요(연결이 되면 다른 기기에도 반영돼요)')}
+      else if(k==='reset'){d.remove();await QA.rename(id,'');toast('원래 이름으로 되돌렸어요')}};
+    d.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();d.querySelector('[data-a=save]').click()}else if(e.key==='Escape')d.remove()});
+    document.body.appendChild(d);setTimeout(()=>{const i=$('qaRn');i.focus();i.select()},50);
+  }
 
-  /* 홈 꾸미기: 별 버튼, 즐겨찾기·최근 본 책, 시리즈 바로가기 */
+  /* ===== 휴지통 화면 ===== */
+  function renderTrash(){
+    const app=$('app');crumb.textContent='› 휴지통';
+    const tr=QA.user().tr||{};
+    const ids=Object.keys(tr).filter(id=>QA.all().some(b=>b.id==id)).sort((a,b)=>tr[b]-tr[a]);
+    let h='<div class="trashHead"><b>🗑 휴지통</b><span>넣은 지 30일이 지나면 자동으로 영구 삭제돼요.</span></div>';
+    if(!ids.length)h+='<p class="note" style="font-size:15px;padding:18px 4px">휴지통이 비어 있어요.</p>';
+    else h+='<div class="trashList">'+ids.map(id=>{
+      const b=QA.all().find(x=>x.id==id),left=Math.max(0,Math.ceil((tr[id]+QA.keepDays*DAY-Date.now())/DAY));
+      return '<div class="trashItem" data-id="'+id+'"><div class="ti"><b>'+esc(label(b))+'</b><small>'+b.units.length+'개 단원 · '+b.n+'문항<br>'+fmtDate(tr[id])+' 삭제 · <em>'+left+'일 뒤 자동 삭제</em></small></div><button data-a="restore" class="pri">복원</button><button data-a="purge" class="danger">지금 삭제</button></div>'}).join('')+'</div><button id="qaEmpty" class="danger wide">휴지통 비우기</button>';
+    app.innerHTML=h;
+    app.querySelectorAll('.trashItem button').forEach(btn=>btn.onclick=async()=>{
+      const id=btn.closest('.trashItem').dataset.id,b=QA.all().find(x=>x.id==id);
+      if(btn.dataset.a==='restore'){await QA.restore(id);toast('복원했어요')}
+      else if(confirm('"'+label(b)+'" 을(를) 지금 영구 삭제할까요?\n되돌릴 수 없어요.')){await QA.purge(id);toast('삭제했어요')}});
+    const em=$('qaEmpty');if(em)em.onclick=async()=>{if(confirm('휴지통의 책 '+ids.length+'권을 모두 영구 삭제할까요?\n되돌릴 수 없어요.')){await QA.purge(ids);toast('휴지통을 비웠어요')}};
+  }
+
+  /* ===== 홈 꾸미기: 별·⋯ 버튼, 즐겨찾기·최근 본 책, 시리즈 바로가기 ===== */
   const miniCard=b=>'<a class="card" href="#'+b.id+'"><b>'+esc(label(b))+'</b><small>'+b.units.length+'개 단원 · '+b.n+'문항</small></a>';
+  function decorateCard(a){
+    if(a.querySelector('.fav'))return;const id=a.getAttribute('href').slice(1);
+    const s=document.createElement('button');s.className='fav'+(favs.includes(id)?' on':'');s.textContent=favs.includes(id)?'★':'☆';s.setAttribute('aria-label','즐겨찾기');
+    s.onclick=e=>{e.preventDefault();e.stopPropagation();toggleFav(id);decorateHomeRefresh()};
+    const m=document.createElement('button');m.className='more';m.textContent='⋯';m.setAttribute('aria-label','이름 변경·휴지통');
+    m.onclick=e=>{e.preventDefault();e.stopPropagation();openMenu(id)};
+    a.appendChild(s);a.appendChild(m);
+  }
   function decorateHome(){
     const app=$('app');if(!app)return;
-    app.querySelectorAll('a.card').forEach(a=>{
-      if(a.querySelector('.fav'))return;const id=a.getAttribute('href').slice(1);
-      const s=document.createElement('button');s.className='fav'+(favs.includes(id)?' on':'');s.textContent=favs.includes(id)?'★':'☆';s.setAttribute('aria-label','즐겨찾기');
-      s.onclick=e=>{e.preventDefault();e.stopPropagation();const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs);decorateHomeRefresh()};
-      a.appendChild(s)});
-    if($('q').value)return;                       // 검색 중에는 요약 구역을 만들지 않음
+    app.querySelectorAll('a.card').forEach(decorateCard);
+    trashBadge();
+    if($('q').value)return;
     const fb=favs.map(bookOf).filter(Boolean),rb=recents.map(bookOf).filter(Boolean).filter(b=>!favs.includes(b.id)).slice(0,6);
     let top='';
     if(fb.length)top+='<div class="qaSec fav"><div class="ser">★ 즐겨찾기</div><div class="cards">'+fb.map(miniCard).join('')+'</div></div>';
@@ -420,27 +550,28 @@ route();
     const jump=sers.length>1?'<div class="qaJump" id="qaJump">'+sers.map((s,i)=>'<span data-i="'+i+'">'+esc(s.textContent)+'</span>').join('')+'</div>':'';
     app.insertAdjacentHTML('afterbegin',jump+top);
     const j=$('qaJump');if(j)j.onclick=e=>{const t=e.target.closest('span');if(!t)return;sers[+t.dataset.i].scrollIntoView({behavior:'smooth',block:'start'})};
-    // 즐겨찾기·최근 카드에도 별 달기
-    app.querySelectorAll('.qaSec a.card').forEach(a=>{if(a.querySelector('.fav'))return;const id=a.getAttribute('href').slice(1);const s=document.createElement('button');s.className='fav'+(favs.includes(id)?' on':'');s.textContent=favs.includes(id)?'★':'☆';s.onclick=e=>{e.preventDefault();e.stopPropagation();const i=favs.indexOf(id);if(i<0)favs.unshift(id);else favs.splice(i,1);set('qa_fav',favs);decorateHomeRefresh()};a.appendChild(s)});
+    app.querySelectorAll('.qaSec a.card').forEach(decorateCard);
   }
   function decorateHomeRefresh(){const y=scrollY;home($('q').value);scrollTo(0,y)}
   const _home=home;home=function(f){_home(f);decorateHome()};
 
-  /* 책 화면: 최근 본 책 기록·별 상태 */
+  /* ===== 라우팅 보강 ===== */
   function onRoute(){
-    const id=curId();document.body.classList.toggle('qa-book',!!id);
-    if(id&&bookOf(id)){recents=[id,...recents.filter(x=>x!==id)].slice(0,12);set('qa_recent',recents)}
-    syncStar();barState();hh();
-    const on=document.querySelector('.chips .chip.on');         // 선택한 단원이 목록 한가운데 보이게
+    const id=curId(),tr=id==='trash';
+    document.body.classList.toggle('qa-book',!!id&&!tr);
+    document.body.classList.toggle('qa-trash',tr);
+    if(id&&!tr&&bookOf(id)){recents=[id,...recents.filter(x=>x!==id)].slice(0,12);set('qa_recent',recents)}
+    syncStar();barState();trashBadge();hh();
+    const on=document.querySelector('.chips .chip.on');
     if(on){const c=on.parentElement;if(c.scrollHeight>c.clientHeight+4)c.scrollTop=on.offsetTop-c.clientHeight/2;else if(c.scrollWidth>c.clientWidth+4)c.scrollLeft=on.offsetLeft-c.clientWidth/2}
   }
-  addEventListener('hashchange',onRoute);
-  const _book=book;book=function(id,sel){_book(id,sel);onRoute()};
+  addEventListener('hashchange',()=>{closeSheet();onRoute()});
+  const _book=book;book=function(id,sel){if(id==='trash'){renderTrash()}else _book(id,sel);onRoute()};
 
-  /* 스와이프로 단원 이동(터치 화면), 키보드 ← → , / 로 검색 */
+  /* 스와이프로 단원 이동, 키보드 */
   let sx=0,sy=0,st=0,ok=false;
-  const unitMove=d=>{const [id,sel]=location.hash.slice(1).split('/');if(!id||sel==='all')return false;const b=bookOf(id);if(!b)return false;const n=(sel===undefined?0:+sel)+d;if(n<0||n>=b.units.length)return false;location.hash=id+'/'+n;return true};
-  document.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();ok=!e.target.closest('.chips,.qaJump,#lb,input,.mat,table')&&e.touches.length===1},{passive:true});
+  const unitMove=d=>{const [id,sel]=location.hash.slice(1).split('/');if(!id||id==='trash'||sel==='all')return false;const b=bookOf(id);if(!b)return false;const n=(sel===undefined?0:+sel)+d;if(n<0||n>=b.units.length)return false;location.hash=id+'/'+n;return true};
+  document.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();ok=!e.target.closest('.chips,.qaJump,#lb,input,.mat,table,#qaSheet')&&e.touches.length===1},{passive:true});
   document.addEventListener('touchend',e=>{if(!ok||!curId())return;const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
     if(Math.abs(dx)>80&&Math.abs(dy)<45&&Date.now()-st<600){if(unitMove(dx<0?1:-1))toast(dx<0?'다음 단원':'이전 단원')}},{passive:true});
   document.addEventListener('keydown',e=>{
@@ -448,7 +579,7 @@ route();
     if(e.key==='/'){e.preventDefault();if(curId())goHome();setTimeout(()=>$('q').focus(),50)}
     else if(e.key==='ArrowRight')unitMove(1);else if(e.key==='ArrowLeft')unitMove(-1)});
 
-  /* 앱 설치(안드로이드·PC 크롬) / 아이폰 안내 */
+  /* 앱 설치 */
   let dip=null;
   addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('qaInst').hidden=false});
   $('qaInst').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(x){}dip=null;$('qaInst').hidden=true};
@@ -458,11 +589,11 @@ route();
     const d=document.createElement('div');d.id='qaIos';d.innerHTML='아이폰·아이패드에서는 사파리 <b>공유(□↑)</b> → <b>홈 화면에 추가</b>를 누르면 앱처럼 쓸 수 있어요.<br><button>알겠어요</button>';
     d.querySelector('button').onclick=()=>{set('qa_ios',1);d.remove()};document.body.appendChild(d)}
 
-  /* 서비스 워커: 껍데기를 기기에 저장해 오프라인에서도 열림 */
+  /* 서비스 워커 */
   if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('quick-sw.js',{scope:'./quick.html'}).catch(()=>{})}
 
   onRoute();
-  if(!curId())decorateHome();            // 첫 화면(데이터가 오기 전)도 한 번 정리
+  if(!curId())decorateHome();
 })();
 
 </script></body></html>
