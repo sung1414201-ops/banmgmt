@@ -254,7 +254,7 @@ window.addEventListener('hashchange',()=>{if(NAVSKIP){NAVSKIP=false;updateBack()
 function goBack(){if(NAVST.length>1){NAVST.pop();NAVSKIP=true;location.hash=NAVST[NAVST.length-1]}else location.hash='#/'}
 document.addEventListener('DOMContentLoaded',updateBack);
 /* 새 버전 알림: 사이트에 새 버전이 올라오면 화면 아래에 알려줘요 */
-const BUILD_ID='20261114172216';
+const BUILD_ID='20261126165249';
 async function checkNewVersion(){
   if(BUILD_ID==='dev'||!/^https?:/.test(location.protocol))return;
   try{const t=await fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(r=>r.text());
@@ -566,6 +566,7 @@ function stepClassDay(c,d,dir){let t=d;for(let i=0;i<14;i++){t=shiftDate(t,dir);
 const dowOf=d=>DOW[new Date(d+'T00:00:00').getDay()];
 const mdd=d=>`${+d.slice(5,7)}/${+d.slice(8)}(${dowOf(d)})`;
 
+const msgOptBox=()=>`<label style="flex-direction:row;align-items:center;gap:3px"><input type="checkbox" style="width:auto" ${MOPT.avg?'checked':''} onchange="setMopt('avg',this.checked)"> 평균</label><label style="flex-direction:row;align-items:center;gap:3px"><input type="checkbox" style="width:auto" ${MOPT.rank?'checked':''} onchange="setMopt('rank',this.checked)"> 등수</label>`;
 let MSGS=[];
 function buildMsg(c,l,sid){
   const s=stu(sid),p=(l.per||{})[sid]||{},mode=LM(c),att=(attDay(c.id,l.date)[sid]||{});
@@ -576,7 +577,9 @@ function buildMsg(c,l,sid){
   if(mode!=='indiv'&&l.unit)L.push('• 단원: '+l.unit);
   if(done)L.push('• 오늘 진행: '+done);
   if(p.chk)L.push('• 지난 숙제: '+({o:'잘 해왔어요',p:'일부만 해왔어요',x:'해오지 못했어요'}[p.chk]));
-  if(hasTest(p))L.push(`• TEST: ${p.test}/${l.tmax||100}점`);
+  if(hasTest(p)){L.push(`• TEST: ${p.test}/${l.tmax||100}점`);
+    const v=lessonStudents(c,lessonOf(c.id,l.date)).map(m=>(l.per||{})[m.id]).filter(q=>q&&hasTest(q)).map(q=>+q.test);
+    if(v.length>1){if(MOPT.avg)L.push(`• 반 평균: ${fmt(avg(v))}점`);if(MOPT.rank)L.push(`• 등수: ${1+v.filter(x=>x>+p.test).length}등 / ${v.length}명`)}}
   if(hw)L.push('• 숙제: '+hw);
   if(p.note)L.push('• '+p.note);
   return L.join('\n');
@@ -633,7 +636,7 @@ function lessonPage(app,c,q){
   <div class="row" style="margin-bottom:10px"><button class="btn" onclick="location.hash='${nav(stepClassDay(c,d,-1))}'">◀ 이전 수업일</button><input type="date" value="${d}" onchange="location.hash='#/class/${cid}?tab=lesson&d='+this.value"><button class="btn" onclick="location.hash='${nav(stepClassDay(c,d,1))}'">다음 수업일 ▶</button><button class="btn sm" onclick="location.hash='${nav(today())}'">오늘</button><b>${mdd(d)}</b>${c.days&&!c.days.includes(dow)?'<span class="badge">수업 요일 아님</span>':''}<span class="sp"></span><select onchange="setLMode('${cid}',this.value)"><option value="" ${!c.lessonMode?'selected':''}>방식: 자동(${mode==='indiv'?'학생별':'전체'})</option><option value="class" ${c.lessonMode==='class'?'selected':''}>전체 공통</option><option value="indiv" ${c.lessonMode==='indiv'?'selected':''}>학생별 개별</option></select></div>
   ${body}
   ${mode==='class'&&others.length?`<details style="margin-top:12px"><summary class="sub">다른 반에도 같은 내용으로 기록 (계획·진행·과제·메모 복사)</summary><div class="card" style="margin-top:6px"><div class="row">${others.map(x=>`<label><input type="checkbox" class="cp-c" value="${x.id}"> ${esc(x.name)}</label>`).join(' ')}</div><div class="row" style="margin-top:8px"><button class="btn sm pri" onclick="copyLessonTo('${cid}','${d}')">선택한 반에 복사</button><span class="sub">같은 날짜의 해당 반 기록에 덮어써요. 실수하면 상단 [되돌리기]를 누르세요.</span></div></div></details>`:''}
-  <details style="margin-top:12px" open><summary><b>문자 만들기</b> <span class="sub">(기록한 내용으로 자동 작성 · 복사 후 문자 시트에 붙여넣기)</span></summary><div style="margin-top:6px">${msgRows.map(([nm,i])=>`<div class="card" style="margin-bottom:6px"><div class="row"><b>${esc(nm)}</b><span class="sp"></span><button class="btn sm pri" onclick="copyMsg(${i})">복사</button></div><div style="white-space:pre-wrap;margin-top:4px;font-size:14px">${esc(MSGS[i])}</div></div>`).join('')}</div></details>
+  <details style="margin-top:12px" open><summary><b>문자 만들기</b> <span class="sub">(기록한 내용으로 자동 작성 · 복사 후 문자 시트에 붙여넣기)</span></summary><div style="margin-top:6px"><div class="row" style="margin-bottom:6px"><span class="sub">TEST 문자에 넣기</span>${msgOptBox()}</div>${msgRows.map(([nm,i])=>`<div class="card" style="margin-bottom:6px"><div class="row"><b>${esc(nm)}</b><span class="sp"></span><button class="btn sm pri" onclick="copyMsg(${i})">복사</button></div><div style="white-space:pre-wrap;margin-top:4px;font-size:14px">${esc(MSGS[i])}</div></div>`).join('')}</div></details>
   <h3>최근 수업 기록</h3>${hist.length?`<table class="t"><tr><th>날짜</th><th>진행</th><th class="hide-s">숙제</th><th></th></tr>${hist.map(x=>`<tr><td>${mdd(x.date)}</td><td>${mode==='class'?((x.unit?'<b>'+esc(x.unit)+'</b> ':'')+esc(x.done||x.plan)||'-'):Object.values(x.per).filter(p=>p&&(p.done||p.plan)).length+'명 기록'}</td><td class="hide-s">${mode==='class'?esc(x.hw)||'-':Object.values(x.per).filter(p=>p&&p.hw).length+'명'}</td><td><button class="btn sm" onclick="location.hash='${nav(x.date)}'">열기</button></td></tr>`).join('')}</table>`:'<p class="note">아직 수업 기록이 없어요.</p>'}`;
 }
 function setL(cid,d,f,v){const l=ensureLesson(cid,d);l[f]=f==='tmax'?(+v||100):v.trim();save()}
